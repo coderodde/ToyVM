@@ -3,7 +3,7 @@
 
 int main(int argc, const char * argv[]) {
     TOYVM vm;
-    INIT_VM(&vm, 1024);
+    INIT_VM(&vm, 1024, 512);
     
     // Load 100 to reg1.
     vm.memory[0] = CONST;

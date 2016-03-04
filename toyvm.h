@@ -31,6 +31,12 @@ const uint8_t HALT = 0x40;
 const uint8_t INT  = 0x41;
 const uint8_t NOP  = 0x42;
 
+/* Stack operations */
+const uint8_t PUSH     = 0x50;
+const uint8_t PUSH_ALL = 0x51;
+const uint8_t POP      = 0x5a;
+const uint8_t POP_ALL  = 0x5b;
+
 /* Register indices */
 const uint8_t REG1 = 0x1;
 const uint8_t REG2 = 0x2;
@@ -38,31 +44,64 @@ const uint8_t REG3 = 0x3;
 const uint8_t REG4 = 0x4;
 
 /* Status codes */
-const uint8_t STATUS_HALT_OK              = 0x1;
-const uint8_t STATUS_HALT_BAD_INSTRUCTION = 0x2;
+const uint8_t STATUS_HALT_OK                = 0x1;
+const uint8_t STATUS_HALT_BAD_INSTRUCTION   = 0x2;
+const uint8_t STATUS_STACK_OVERFLOW         = 0x4;
+const uint8_t STATUS_STACK_UNDERFLOW        = 0x8;
+const uint8_t STATUS_INVALID_REGISTER_INDEX = 0x16;
+
+/* Interrupts */
+const uint8_t INTERRUPT_PRINT_INTEGER = 0x1;
+const uint8_t INTERRUPT_PRINT_STRING  = 0x2;
 
 typedef struct VM_CPU {
-    uint32_t reg1;
-    uint32_t reg2;
-    uint32_t reg3;
-    uint32_t reg4;
-    size_t   program_counter;
-    size_t   stack_pointer;
-    uint8_t  status;
+    int32_t reg1;
+    int32_t reg2;
+    int32_t reg3;
+    int32_t reg4;
+    size_t  program_counter;
+    int32_t stack_pointer;
+    uint8_t status;
 } VM_CPU;
 
 typedef struct TOYVM {
     uint8_t* memory;
     size_t   memory_size;
+    int32_t  stack_limit;
     VM_CPU   cpu;
 } TOYVM;
 
-void INIT_VM(TOYVM* vm, size_t memory_size)
+static bool STACK_IS_EMPTY(TOYVM* vm)
 {
+    return vm->cpu.stack_pointer >= vm->memory_size;
+}
+
+static bool STACK_IS_FULL(TOYVM* vm)
+{
+    return vm->cpu.stack_pointer <= vm->stack_limit;
+}
+
+static bool CAN_PERFORM_MULTIPUSH(TOYVM* vm)
+{
+    /* 16 = 4 (registers) * 4 (bytes each) */
+    return vm->cpu.stack_pointer - vm->stack_limit >= 16;
+}
+
+static bool CAN_PERFORM_MULTIPOP(TOYVM* vm)
+{
+    return vm->cpu.stack_pointer <= vm->memory_size - 16;
+}
+
+void INIT_VM(TOYVM* vm, size_t memory_size, int32_t stack_limit)
+{
+    /* Make sure both 'memory_size' and 'stack_limit' are divisible by 4. */
+    memory_size             -= (memory_size % 4);
+    stack_limit             -= (stack_limit % 4);
     vm->memory              = calloc(memory_size, 1);
     vm->memory_size         = memory_size;
+    vm->stack_limit         = stack_limit;
     vm->cpu.program_counter = 0;
-    vm->cpu.stack_pointer   = memory_size - 1;
+    vm->cpu.stack_pointer   = (int32_t) memory_size;
     vm->cpu.reg1            = 0;
     vm->cpu.reg2            = 0;
     vm->cpu.reg3            = 0;
@@ -266,6 +305,128 @@ static bool EXECUTE_CONST(TOYVM* vm)
     
     vm->cpu.program_counter += 6;
     return true;
+}
+
+static bool EXECUTE_INT(TOYVM* vm)
+{
+    if (!INSTRUCTION_FITS_IN_MEMORY(vm, 2))
+    {
+        return false;
+    }
+    
+    uint8_t handler_id = READ_BYTE(vm, PROGRAM_COUNTER(vm) + 1);
+    
+    switch (handler_id) {
+        case INTERRUPT_PRINT_INTEGER:
+            break;
+    }
+    
+    vm->cpu.program_counter += 2;
+    return true;
+}
+
+static bool EXECUTE_PUSH(TOYVM* vm)
+{
+    if (!INSTRUCTION_FITS_IN_MEMORY(vm, 2))
+    {
+        return false;
+    }
+    
+    if (STACK_IS_FULL(vm))
+    {
+        return false;
+    }
+
+    switch (READ_BYTE(vm, PROGRAM_COUNTER(vm) + 1))
+    {
+        case REG1:
+            WRITE_WORD(vm, vm->cpu.stack_pointer - 4, vm->cpu.reg1);
+            break;
+            
+        case REG2:
+            WRITE_WORD(vm, vm->cpu.stack_pointer - 4, vm->cpu.reg2);
+            break;
+            
+        case REG3:
+            WRITE_WORD(vm, vm->cpu.stack_pointer - 4, vm->cpu.reg3);
+            break;
+            
+        case REG4:
+            WRITE_WORD(vm, vm->cpu.stack_pointer - 4, vm->cpu.reg4);
+            break;
+            
+        default:
+            vm->cpu.status |= STATUS_INVALID_REGISTER_INDEX;
+            return false;
+    }
+    
+    vm->cpu.stack_pointer -= 4;
+    vm->cpu.program_counter += 2;
+    return true;
+}
+
+static bool EXECUTE_POP(TOYVM* vm)
+{
+    if (!INSTRUCTION_FITS_IN_MEMORY(vm, 2))
+    {
+        return false;
+    }
+    
+    if (STACK_IS_EMPTY(vm))
+    {
+        return false;
+    }
+    
+    size_t program_counter = PROGRAM_COUNTER(vm);
+    int32_t datum = READ_WORD(vm, program_counter + 2);
+    
+    switch (READ_BYTE(vm, program_counter + 1))
+    {
+        case REG1:
+            vm->cpu.reg1 = datum;
+            break;
+            
+        case REG2:
+            vm->cpu.reg2 = datum;
+            break;
+            
+        case REG3:
+            vm->cpu.reg3 = datum;
+            break;
+            
+        case REG4:
+            vm->cpu.reg4 = datum;
+            break;
+            
+        default:
+            vm->cpu.status |= STATUS_INVALID_REGISTER_INDEX;
+            return false;
+    }
+    
+    vm->cpu.stack_pointer += 4;
+    vm->cpu.program_counter += 2;
+    return true;
+}
+
+static bool EXECUTE_MULTIPUSH(TOYVM* vm)
+{
+    if (!CAN_PERFORM_MULTIPUSH(vm))
+    {
+        return false;
+    }
+    
+    WRITE_WORD(vm, <#size_t address#>, <#int32_t value#>)
+    return false;
+}
+
+static bool EXECUTE_MULTIPOP(TOYVM* vm)
+{
+    if (!CAN_PERFORM_MULTIPOP(vm))
+    {
+        return false;
+    }
+    
+    return false;
 }
 
 void RUN_VM(TOYVM* vm)
