@@ -412,21 +412,33 @@ static bool EXECUTE_MULTIPUSH(TOYVM* vm)
 {
     if (!CAN_PERFORM_MULTIPUSH(vm))
     {
+        vm->cpu.status |= STATUS_STACK_OVERFLOW;
         return false;
     }
     
-    WRITE_WORD(vm, <#size_t address#>, <#int32_t value#>)
-    return false;
+    WRITE_WORD(vm, vm->cpu.stack_pointer -= 4, vm->cpu.reg1);
+    WRITE_WORD(vm, vm->cpu.stack_pointer -= 4, vm->cpu.reg2);
+    WRITE_WORD(vm, vm->cpu.stack_pointer -= 4, vm->cpu.reg3);
+    WRITE_WORD(vm, vm->cpu.stack_pointer -= 4, vm->cpu.reg4);
+    vm->cpu.program_counter++;
+    return true;
 }
 
 static bool EXECUTE_MULTIPOP(TOYVM* vm)
 {
     if (!CAN_PERFORM_MULTIPOP(vm))
     {
+        vm->cpu.status |= STATUS_STACK_UNDERFLOW;
         return false;
     }
     
-    return false;
+    vm->cpu.reg4 = READ_WORD(vm, vm->cpu.stack_pointer);
+    vm->cpu.reg3 = READ_WORD(vm, vm->cpu.stack_pointer + 4);
+    vm->cpu.reg2 = READ_WORD(vm, vm->cpu.stack_pointer + 8);
+    vm->cpu.reg1 = READ_WORD(vm, vm->cpu.stack_pointer + 12);
+    vm->cpu.stack_pointer += 16;
+    vm->cpu.program_counter++;
+    return true;
 }
 
 void RUN_VM(TOYVM* vm)
@@ -463,7 +475,26 @@ void RUN_VM(TOYVM* vm)
                 
                 break;
                 
+            case PUSH_ALL:
+                if (!EXECUTE_MULTIPUSH(vm))
+                {
+                    return;
+                }
+                
+                break;
+                
+            case POP_ALL:
+                if (!EXECUTE_MULTIPOP(vm))
+                {
+                    return;
+                }
+                
+                break;
+                
             case HALT:
+                return;
+                
+            default:
                 return;
         }
     }

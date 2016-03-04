@@ -3,8 +3,9 @@
 
 int main(int argc, const char * argv[]) {
     TOYVM vm;
-    INIT_VM(&vm, 1024, 512);
+    INIT_VM(&vm, 1024, 1012);
     
+    /*
     // Load 100 to reg1.
     vm.memory[0] = CONST;
     vm.memory[1] = REG1;
@@ -20,9 +21,16 @@ int main(int argc, const char * argv[]) {
     vm.memory[13] = REG1;
     vm.memory[14] = REG2;
     vm.memory[15] = HALT;
+     */
+    
+    vm.memory[0] = CONST;
+    vm.memory[1] = REG3;
+    WRITE_WORD(&vm, 2, 234);
+    vm.memory[6] = PUSH_ALL;
+    vm.memory[7] = HALT;
     
     RUN_VM(&vm);
     
-    printf("Hello, World! %u\n", vm.cpu.reg2);
+    printf("%xu\n", vm.cpu.status);
     return 0;
 }
