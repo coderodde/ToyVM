@@ -11,6 +11,7 @@ const uint8_t ADD = 0x01;
 const uint8_t NEG = 0x02;
 const uint8_t MUL = 0x03;
 const uint8_t DIV = 0x04;
+const uint8_t MOD = 0x05;
 
 /* Conditionals */
 const uint8_t JUMP_IF_ZERO = 0x10;
@@ -268,6 +269,195 @@ static bool EXECUTE_NEG(TOYVM* vm)
     return true;
 }
 
+static bool EXECUTE_MUL(TOYVM* vm)
+{
+    uint8_t source_register_index;
+    uint8_t target_register_index;
+    
+    if (!INSTRUCTION_FITS_IN_MEMORY(vm, 3))
+    {
+        return false;
+    }
+    
+    source_register_index = vm->memory[vm->cpu.program_counter + 1];
+    target_register_index = vm->memory[vm->cpu.program_counter + 2];
+    uint32_t DATUM;
+    
+    switch (source_register_index)
+    {
+        case REG1:
+            DATUM = vm->cpu.reg1;
+            break;
+            
+        case REG2:
+            DATUM = vm->cpu.reg2;
+            break;
+            
+        case REG3:
+            DATUM = vm->cpu.reg3;
+            break;
+            
+        case REG4:
+            DATUM = vm->cpu.reg4;
+            break;
+            
+        default:
+            return false;
+    }
+    
+    switch (target_register_index)
+    {
+        case REG1:
+            vm->cpu.reg1 *= DATUM;
+            break;
+            
+        case REG2:
+            vm->cpu.reg2 *= DATUM;
+            break;
+            
+        case REG3:
+            vm->cpu.reg3 *= DATUM;
+            break;
+            
+        case REG4:
+            vm->cpu.reg4 *= DATUM;
+            break;
+            
+        default:
+            return false;
+    }
+    
+    /* Advance the program counter past this instruction. */
+    vm->cpu.program_counter += 3;
+    return true;
+}
+
+static bool EXECUTE_DIV(TOYVM* vm)
+{
+    uint8_t source_register_index;
+    uint8_t target_register_index;
+    
+    if (!INSTRUCTION_FITS_IN_MEMORY(vm, 3))
+    {
+        return false;
+    }
+    
+    source_register_index = vm->memory[vm->cpu.program_counter + 1];
+    target_register_index = vm->memory[vm->cpu.program_counter + 2];
+    uint32_t DATUM;
+    
+    switch (source_register_index)
+    {
+        case REG1:
+            DATUM = vm->cpu.reg1;
+            break;
+            
+        case REG2:
+            DATUM = vm->cpu.reg2;
+            break;
+            
+        case REG3:
+            DATUM = vm->cpu.reg3;
+            break;
+            
+        case REG4:
+            DATUM = vm->cpu.reg4;
+            break;
+            
+        default:
+            return false;
+    }
+    
+    switch (target_register_index)
+    {
+        case REG1:
+            vm->cpu.reg1 /= DATUM;
+            break;
+            
+        case REG2:
+            vm->cpu.reg2 /= DATUM;
+            break;
+            
+        case REG3:
+            vm->cpu.reg3 /= DATUM;
+            break;
+            
+        case REG4:
+            vm->cpu.reg4 /= DATUM;
+            break;
+            
+        default:
+            return false;
+    }
+    
+    /* Advance the program counter past this instruction. */
+    vm->cpu.program_counter += 3;
+    return true;
+}
+
+static bool EXECUTE_MOD(TOYVM* vm)
+{
+    uint8_t source_register_index;
+    uint8_t target_register_index;
+    
+    if (!INSTRUCTION_FITS_IN_MEMORY(vm, 3))
+    {
+        return false;
+    }
+    
+    source_register_index = vm->memory[vm->cpu.program_counter + 1];
+    target_register_index = vm->memory[vm->cpu.program_counter + 2];
+    uint32_t DATUM;
+    
+    switch (source_register_index)
+    {
+        case REG1:
+            DATUM = vm->cpu.reg1;
+            break;
+            
+        case REG2:
+            DATUM = vm->cpu.reg2;
+            break;
+            
+        case REG3:
+            DATUM = vm->cpu.reg3;
+            break;
+            
+        case REG4:
+            DATUM = vm->cpu.reg4;
+            break;
+            
+        default:
+            return false;
+    }
+    
+    switch (target_register_index)
+    {
+        case REG1:
+            vm->cpu.reg1 %= DATUM;
+            break;
+            
+        case REG2:
+            vm->cpu.reg2 %= DATUM;
+            break;
+            
+        case REG3:
+            vm->cpu.reg3 %= DATUM;
+            break;
+            
+        case REG4:
+            vm->cpu.reg4 %= DATUM;
+            break;
+            
+        default:
+            return false;
+    }
+    
+    /* Advance the program counter past this instruction. */
+    vm->cpu.program_counter += 3;
+    return true;
+}
+
 static bool EXECUTE_CONST(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, 6))
@@ -453,6 +643,30 @@ void RUN_VM(TOYVM* vm)
         {
             case ADD:
                 if (!EXECUTE_ADD(vm))
+                {
+                    return;
+                }
+                
+                break;
+                
+            case MUL:
+                if (!EXECUTE_MUL(vm))
+                {
+                    return;
+                }
+                
+                break;
+                
+            case DIV:
+                if (!EXECUTE_DIV(vm))
+                {
+                    return;
+                }
+                
+                break;
+                
+            case MOD:
+                if (!EXECUTE_MOD(vm))
                 {
                     return;
                 }
