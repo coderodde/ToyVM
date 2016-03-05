@@ -34,6 +34,7 @@ int main(int argc, const char * argv[]) {
     vm.memory[13] = POP_ALL;
     vm.memory[14] = HALT;*/
     
+    /*
     vm.memory[0] = CONST;
     vm.memory[1] = REG1;
     WRITE_WORD(&vm, 2, 1001);
@@ -54,7 +55,15 @@ int main(int argc, const char * argv[]) {
     vm.memory[29] = REG3;
     vm.memory[30] = MOD;
     vm.memory[31] = REG1;
-    vm.memory[32] = REG4;
+    vm.memory[32] = REG4;*/
+    
+    vm.memory[0] = CONST;
+    vm.memory[1] = REG3;
+    WRITE_WORD(&vm, 2, 12345678);
+    vm.memory[6] = PUSH;
+    vm.memory[7] = REG3;
+    vm.memory[8] = INT;
+    vm.memory[9] = INTERRUPT_PRINT_INTEGER;
     
     RUN_VM(&vm);
     

@@ -496,7 +496,7 @@ static bool EXECUTE_CONST(TOYVM* vm)
     vm->cpu.program_counter += 6;
     return true;
 }
-
+/*
 static bool EXECUTE_INT(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, 2))
@@ -509,11 +509,14 @@ static bool EXECUTE_INT(TOYVM* vm)
     switch (handler_id) {
         case INTERRUPT_PRINT_INTEGER:
             break;
+            
+        case INTERRUPT_PRINT_STRING:
+            
     }
     
     vm->cpu.program_counter += 2;
     return true;
-}
+}*/
 
 static bool EXECUTE_PUSH(TOYVM* vm)
 {
@@ -594,6 +597,60 @@ static bool EXECUTE_POP(TOYVM* vm)
     }
     
     vm->cpu.stack_pointer += 4;
+    vm->cpu.program_counter += 2;
+    return true;
+}
+
+static uint32_t POP_VM(TOYVM* vm)
+{
+    if (STACK_IS_EMPTY(vm))
+    {
+        return 0;
+    }
+    
+    uint32_t word = READ_WORD(vm, vm->cpu.stack_pointer);
+    vm->cpu.stack_pointer += 4;
+    return word;
+}
+
+static void PRINT_STRING(TOYVM* vm, uint32_t address)
+{
+    printf("%s", (char*) vm->memory[address]);
+}
+
+static bool EXECUTE_INTERRUPT(TOYVM* vm)
+{
+    if (!INSTRUCTION_FITS_IN_MEMORY(vm, 2))
+    {
+        return false;
+    }
+    
+    uint8_t interrupt_number = READ_BYTE(vm, PROGRAM_COUNTER(vm) + 1);
+    
+    switch (interrupt_number)
+    {
+        case INTERRUPT_PRINT_INTEGER:
+            if (STACK_IS_EMPTY(vm))
+            {
+                return false;
+            }
+            
+            printf("%d", POP_VM(vm));
+            break;
+            
+        case INTERRUPT_PRINT_STRING:
+            if (STACK_IS_EMPTY(vm))
+            {
+                return false;
+            }
+            
+            PRINT_STRING(vm, POP_VM(vm));
+            break;
+            
+        default:
+            return false;
+    }
+    
     vm->cpu.program_counter += 2;
     return true;
 }
@@ -689,6 +746,22 @@ void RUN_VM(TOYVM* vm)
                 
                 break;
                 
+            case POP:
+                if (!EXECUTE_POP(vm))
+                {
+                    return;
+                }
+                
+                break;
+                
+            case PUSH:
+                if (!EXECUTE_PUSH(vm))
+                {
+                    return;
+                }
+                
+                break;
+                
             case PUSH_ALL:
                 if (!EXECUTE_MULTIPUSH(vm))
                 {
@@ -699,6 +772,14 @@ void RUN_VM(TOYVM* vm)
                 
             case POP_ALL:
                 if (!EXECUTE_MULTIPOP(vm))
+                {
+                    return;
+                }
+                
+                break;
+                
+            case INT:
+                if (!EXECUTE_INTERRUPT(vm))
                 {
                     return;
                 }
