@@ -699,90 +699,57 @@ void RUN_VM(TOYVM* vm)
         switch (opcode)
         {
             case ADD:
-                if (!EXECUTE_ADD(vm))
-                {
-                    return;
-                }
+                if (!EXECUTE_ADD(vm)) return;
                 
                 break;
                 
             case MUL:
-                if (!EXECUTE_MUL(vm))
-                {
-                    return;
-                }
+                if (!EXECUTE_MUL(vm)) return;
                 
                 break;
                 
             case DIV:
-                if (!EXECUTE_DIV(vm))
-                {
-                    return;
-                }
+                if (!EXECUTE_DIV(vm)) return;
                 
                 break;
                 
             case MOD:
-                if (!EXECUTE_MOD(vm))
-                {
-                    return;
-                }
+                if (!EXECUTE_MOD(vm)) return;
                 
                 break;
                 
             case NEG:
-                if (!EXECUTE_NEG(vm))
-                {
-                    return;
-                }
+                if (!EXECUTE_NEG(vm)) return;
                 
                 break;
                 
             case CONST:
-                if (!EXECUTE_CONST(vm))
-                {
-                    return;
-                }
+                if (!EXECUTE_CONST(vm)) return;
                 
                 break;
                 
             case POP:
-                if (!EXECUTE_POP(vm))
-                {
-                    return;
-                }
+                if (!EXECUTE_POP(vm)) return;
                 
                 break;
                 
             case PUSH:
-                if (!EXECUTE_PUSH(vm))
-                {
-                    return;
-                }
+                if (!EXECUTE_PUSH(vm)) return;
                 
                 break;
                 
             case PUSH_ALL:
-                if (!EXECUTE_MULTIPUSH(vm))
-                {
-                    return;
-                }
+                if (!EXECUTE_MULTIPUSH(vm)) return;
                 
                 break;
                 
             case POP_ALL:
-                if (!EXECUTE_MULTIPOP(vm))
-                {
-                    return;
-                }
+                if (!EXECUTE_MULTIPOP(vm)) return;
                 
                 break;
                 
             case INT:
-                if (!EXECUTE_INTERRUPT(vm))
-                {
-                    return;
-                }
+                if (!EXECUTE_INTERRUPT(vm)) return;
                 
                 break;
                 
