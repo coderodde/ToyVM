@@ -67,9 +67,9 @@ int main(int argc, const char * argv[]) {
     
     RUN_VM(&vm);
     
-    printf("REG1: %u\n", vm.cpu.reg1);
-    printf("REG2: %u\n", vm.cpu.reg2);
-    printf("REG3: %u\n", vm.cpu.reg3);
-    printf("REG4: %u\n", vm.cpu.reg4);
+    printf("REG1: %u\n", vm.cpu.registers[REG1]);
+    printf("REG2: %u\n", vm.cpu.registers[REG2]);
+    printf("REG3: %u\n", vm.cpu.registers[REG3]);
+    printf("REG4: %u\n", vm.cpu.registers[REG4]);
     return 0;
 }

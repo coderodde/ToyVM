@@ -39,10 +39,10 @@ const uint8_t POP      = 0x5a;
 const uint8_t POP_ALL  = 0x5b;
 
 /* Register indices */
-const uint8_t REG1 = 0x1;
-const uint8_t REG2 = 0x2;
-const uint8_t REG3 = 0x3;
-const uint8_t REG4 = 0x4;
+const uint8_t REG1 = 0x0;
+const uint8_t REG2 = 0x1;
+const uint8_t REG3 = 0x2;
+const uint8_t REG4 = 0x3;
 
 /* Status codes */
 const uint8_t STATUS_HALT_OK                = 0x1;
@@ -55,11 +55,14 @@ const uint8_t STATUS_INVALID_REGISTER_INDEX = 0x16;
 const uint8_t INTERRUPT_PRINT_INTEGER = 0x1;
 const uint8_t INTERRUPT_PRINT_STRING  = 0x2;
 
+const size_t N_REGISTERS = 4;
+
 typedef struct VM_CPU {
-    int32_t reg1;
+    int32_t registers[4];
+/*    int32_t reg1;
     int32_t reg2;
     int32_t reg3;
-    int32_t reg4;
+    int32_t reg4;*/
     size_t  program_counter;
     int32_t stack_pointer;
     uint8_t status;
@@ -103,10 +106,7 @@ void INIT_VM(TOYVM* vm, size_t memory_size, int32_t stack_limit)
     vm->stack_limit         = stack_limit;
     vm->cpu.program_counter = 0;
     vm->cpu.stack_pointer   = (int32_t) memory_size;
-    vm->cpu.reg1            = 0;
-    vm->cpu.reg2            = 0;
-    vm->cpu.reg3            = 0;
-    vm->cpu.reg4            = 0;
+    memset(vm->cpu.registers, 0, sizeof(int32_t) * N_REGISTERS);
 }
 
 void WRITE_VM_MEMORY(TOYVM* vm, uint8_t* mem, size_t size)
@@ -183,53 +183,18 @@ static bool EXECUTE_ADD(TOYVM* vm)
         return false;
     }
     
-    source_register_index = vm->memory[vm->cpu.program_counter + 1];
-    target_register_index = vm->memory[vm->cpu.program_counter + 2];
-    uint32_t DATUM;
+    source_register_index = vm->memory[PROGRAM_COUNTER(vm) + 1];
+    target_register_index = vm->memory[PROGRAM_COUNTER(vm) + 2];
     
-    switch (source_register_index)
+    if (!IS_VALID_REGISTER_INDEX(source_register_index)
+        && !IS_VALID_REGISTER_INDEX(target_register_index))
     {
-        case REG1:
-            DATUM = vm->cpu.reg1;
-            break;
-            
-        case REG2:
-            DATUM = vm->cpu.reg2;
-            break;
-            
-        case REG3:
-            DATUM = vm->cpu.reg3;
-            break;
-            
-        case REG4:
-            DATUM = vm->cpu.reg4;
-            break;
-            
-        default:
-            return false;
+        vm->cpu.status |= STATUS_INVALID_REGISTER_INDEX;
+        return false;
     }
     
-    switch (target_register_index)
-    {
-        case REG1:
-            vm->cpu.reg1 += DATUM;
-            break;
-            
-        case REG2:
-            vm->cpu.reg2 += DATUM;
-            break;
-            
-        case REG3:
-            vm->cpu.reg3 += DATUM;
-            break;
-            
-        case REG4:
-            vm->cpu.reg4 += DATUM;
-            break;
-            
-        default:
-            return false;
-    }
+    vm->cpu.registers[target_register_index]
+        += vm->cpu.registers[source_register_index];
     
     /* Advance the program counter past this instruction. */
     vm->cpu.program_counter += 3;
@@ -243,28 +208,15 @@ static bool EXECUTE_NEG(TOYVM* vm)
         return false;
     }
     
-    switch (vm->memory[vm->cpu.program_counter + 1])
+    uint8_t register_index = READ_BYTE(vm, PROGRAM_COUNTER(vm) + 1);
+    
+    if (!IS_VALID_REGISTER_INDEX(register_index))
     {
-        case REG1:
-            vm->cpu.reg1 = - vm->cpu.reg1;
-            break;
-            
-        case REG2:
-            vm->cpu.reg2 = - vm->cpu.reg2;
-            break;
-            
-        case REG3:
-            vm->cpu.reg3 = - vm->cpu.reg3;
-            break;
-            
-        case REG4:
-            vm->cpu.reg4 = - vm->cpu.reg4;
-            break;
-            
-        default:
-            return false;
+        vm->cpu.status |= STATUS_INVALID_REGISTER_INDEX;
+        return false;
     }
     
+    vm->cpu.registers[register_index] = vm->cpu.registers[register_index];
     vm->cpu.program_counter += 2;
     return true;
 }
@@ -279,54 +231,18 @@ static bool EXECUTE_MUL(TOYVM* vm)
         return false;
     }
     
-    source_register_index = vm->memory[vm->cpu.program_counter + 1];
-    target_register_index = vm->memory[vm->cpu.program_counter + 2];
-    uint32_t DATUM;
+    source_register_index = READ_BYTE(vm, PROGRAM_COUNTER(vm) + 1);
+    target_register_index = READ_BYTE(vm, PROGRAM_COUNTER(vm) + 2);
     
-    switch (source_register_index)
+    if (!IS_VALID_REGISTER_INDEX(source_register_index)
+        || !IS_VALID_REGISTER_INDEX(target_register_index))
     {
-        case REG1:
-            DATUM = vm->cpu.reg1;
-            break;
-            
-        case REG2:
-            DATUM = vm->cpu.reg2;
-            break;
-            
-        case REG3:
-            DATUM = vm->cpu.reg3;
-            break;
-            
-        case REG4:
-            DATUM = vm->cpu.reg4;
-            break;
-            
-        default:
-            return false;
+        vm->cpu.status |= STATUS_INVALID_REGISTER_INDEX;
+        return false;
     }
     
-    switch (target_register_index)
-    {
-        case REG1:
-            vm->cpu.reg1 *= DATUM;
-            break;
-            
-        case REG2:
-            vm->cpu.reg2 *= DATUM;
-            break;
-            
-        case REG3:
-            vm->cpu.reg3 *= DATUM;
-            break;
-            
-        case REG4:
-            vm->cpu.reg4 *= DATUM;
-            break;
-            
-        default:
-            return false;
-    }
-    
+    vm->cpu.registers[target_register_index] *=
+    vm->cpu.registers[source_register_index];
     /* Advance the program counter past this instruction. */
     vm->cpu.program_counter += 3;
     return true;
@@ -342,54 +258,18 @@ static bool EXECUTE_DIV(TOYVM* vm)
         return false;
     }
     
-    source_register_index = vm->memory[vm->cpu.program_counter + 1];
-    target_register_index = vm->memory[vm->cpu.program_counter + 2];
-    uint32_t DATUM;
+    source_register_index = READ_BYTE(vm, PROGRAM_COUNTER(vm) + 1);
+    target_register_index = READ_BYTE(vm, PROGRAM_COUNTER(vm) + 2);
     
-    switch (source_register_index)
+    if (!IS_VALID_REGISTER_INDEX(source_register_index)
+        || !IS_VALID_REGISTER_INDEX(target_register_index))
     {
-        case REG1:
-            DATUM = vm->cpu.reg1;
-            break;
-            
-        case REG2:
-            DATUM = vm->cpu.reg2;
-            break;
-            
-        case REG3:
-            DATUM = vm->cpu.reg3;
-            break;
-            
-        case REG4:
-            DATUM = vm->cpu.reg4;
-            break;
-            
-        default:
-            return false;
+        vm->cpu.status |= STATUS_INVALID_REGISTER_INDEX;
+        return false;
     }
     
-    switch (target_register_index)
-    {
-        case REG1:
-            vm->cpu.reg1 /= DATUM;
-            break;
-            
-        case REG2:
-            vm->cpu.reg2 /= DATUM;
-            break;
-            
-        case REG3:
-            vm->cpu.reg3 /= DATUM;
-            break;
-            
-        case REG4:
-            vm->cpu.reg4 /= DATUM;
-            break;
-            
-        default:
-            return false;
-    }
-    
+    vm->cpu.registers[target_register_index] /=
+    vm->cpu.registers[source_register_index];
     /* Advance the program counter past this instruction. */
     vm->cpu.program_counter += 3;
     return true;
@@ -405,54 +285,18 @@ static bool EXECUTE_MOD(TOYVM* vm)
         return false;
     }
     
-    source_register_index = vm->memory[vm->cpu.program_counter + 1];
-    target_register_index = vm->memory[vm->cpu.program_counter + 2];
-    uint32_t DATUM;
+    source_register_index = READ_BYTE(vm, PROGRAM_COUNTER(vm) + 1);
+    target_register_index = READ_BYTE(vm, PROGRAM_COUNTER(vm) + 2);
     
-    switch (source_register_index)
+    if (!IS_VALID_REGISTER_INDEX(source_register_index)
+        || !IS_VALID_REGISTER_INDEX(target_register_index))
     {
-        case REG1:
-            DATUM = vm->cpu.reg1;
-            break;
-            
-        case REG2:
-            DATUM = vm->cpu.reg2;
-            break;
-            
-        case REG3:
-            DATUM = vm->cpu.reg3;
-            break;
-            
-        case REG4:
-            DATUM = vm->cpu.reg4;
-            break;
-            
-        default:
-            return false;
+        vm->cpu.status |= STATUS_INVALID_REGISTER_INDEX;
+        return false;
     }
     
-    switch (target_register_index)
-    {
-        case REG1:
-            vm->cpu.reg1 %= DATUM;
-            break;
-            
-        case REG2:
-            vm->cpu.reg2 %= DATUM;
-            break;
-            
-        case REG3:
-            vm->cpu.reg3 %= DATUM;
-            break;
-            
-        case REG4:
-            vm->cpu.reg4 %= DATUM;
-            break;
-            
-        default:
-            return false;
-    }
-    
+    vm->cpu.registers[target_register_index] /=
+    vm->cpu.registers[source_register_index];
     /* Advance the program counter past this instruction. */
     vm->cpu.program_counter += 3;
     return true;
@@ -466,57 +310,19 @@ static bool EXECUTE_CONST(TOYVM* vm)
     }
     
     size_t program_counter = PROGRAM_COUNTER(vm);
-    int32_t datum = READ_WORD(vm, program_counter + 2);
     uint8_t register_index = READ_BYTE(vm, program_counter + 1);
+    int32_t datum = READ_WORD(vm, program_counter + 2);
     
     if (!IS_VALID_REGISTER_INDEX(register_index))
     {
+        vm->cpu.status |= STATUS_INVALID_REGISTER_INDEX;
         return false;
     }
     
-    switch (register_index)
-    {
-        case REG1:
-            vm->cpu.reg1 = datum;
-            break;
-            
-        case REG2:
-            vm->cpu.reg2 = datum;
-            break;
-            
-        case REG3:
-            vm->cpu.reg3 = datum;
-            break;
-            
-        case REG4:
-            vm->cpu.reg4 = datum;
-            break;
-    }
-    
+    vm->cpu.registers[register_index] = datum;
     vm->cpu.program_counter += 6;
     return true;
 }
-/*
-static bool EXECUTE_INT(TOYVM* vm)
-{
-    if (!INSTRUCTION_FITS_IN_MEMORY(vm, 2))
-    {
-        return false;
-    }
-    
-    uint8_t handler_id = READ_BYTE(vm, PROGRAM_COUNTER(vm) + 1);
-    
-    switch (handler_id) {
-        case INTERRUPT_PRINT_INTEGER:
-            break;
-            
-        case INTERRUPT_PRINT_STRING:
-            
-    }
-    
-    vm->cpu.program_counter += 2;
-    return true;
-}*/
 
 static bool EXECUTE_PUSH(TOYVM* vm)
 {
@@ -530,28 +336,17 @@ static bool EXECUTE_PUSH(TOYVM* vm)
         return false;
     }
 
-    switch (READ_BYTE(vm, PROGRAM_COUNTER(vm) + 1))
+    uint8_t register_index = READ_BYTE(vm, PROGRAM_COUNTER(vm) + 1);
+    
+    if (!IS_VALID_REGISTER_INDEX(register_index))
     {
-        case REG1:
-            WRITE_WORD(vm, vm->cpu.stack_pointer - 4, vm->cpu.reg1);
-            break;
-            
-        case REG2:
-            WRITE_WORD(vm, vm->cpu.stack_pointer - 4, vm->cpu.reg2);
-            break;
-            
-        case REG3:
-            WRITE_WORD(vm, vm->cpu.stack_pointer - 4, vm->cpu.reg3);
-            break;
-            
-        case REG4:
-            WRITE_WORD(vm, vm->cpu.stack_pointer - 4, vm->cpu.reg4);
-            break;
-            
-        default:
-            vm->cpu.status |= STATUS_INVALID_REGISTER_INDEX;
-            return false;
+        vm->cpu.status |= STATUS_INVALID_REGISTER_INDEX;
+        return false;
     }
+    
+    WRITE_WORD(vm,
+               vm->cpu.stack_pointer - 4,
+               vm->cpu.registers[register_index]);
     
     vm->cpu.stack_pointer -= 4;
     vm->cpu.program_counter += 2;
@@ -570,32 +365,16 @@ static bool EXECUTE_POP(TOYVM* vm)
         return false;
     }
     
-    size_t program_counter = PROGRAM_COUNTER(vm);
-    int32_t datum = READ_WORD(vm, program_counter + 2);
+    uint8_t register_index = READ_BYTE(vm, PROGRAM_COUNTER(vm) + 1);
     
-    switch (READ_BYTE(vm, program_counter + 1))
+    if (!IS_VALID_REGISTER_INDEX(register_index))
     {
-        case REG1:
-            vm->cpu.reg1 = datum;
-            break;
-            
-        case REG2:
-            vm->cpu.reg2 = datum;
-            break;
-            
-        case REG3:
-            vm->cpu.reg3 = datum;
-            break;
-            
-        case REG4:
-            vm->cpu.reg4 = datum;
-            break;
-            
-        default:
-            vm->cpu.status |= STATUS_INVALID_REGISTER_INDEX;
-            return false;
+        vm->cpu.status |= STATUS_INVALID_REGISTER_INDEX;
+        return false;
     }
     
+    int32_t datum = READ_WORD(vm, PROGRAM_COUNTER(vm) + 2);
+    vm->cpu.registers[register_index] = datum;
     vm->cpu.stack_pointer += 4;
     vm->cpu.program_counter += 2;
     return true;
@@ -663,10 +442,10 @@ static bool EXECUTE_MULTIPUSH(TOYVM* vm)
         return false;
     }
     
-    WRITE_WORD(vm, vm->cpu.stack_pointer -= 4, vm->cpu.reg1);
-    WRITE_WORD(vm, vm->cpu.stack_pointer -= 4, vm->cpu.reg2);
-    WRITE_WORD(vm, vm->cpu.stack_pointer -= 4, vm->cpu.reg3);
-    WRITE_WORD(vm, vm->cpu.stack_pointer -= 4, vm->cpu.reg4);
+    WRITE_WORD(vm, vm->cpu.stack_pointer -= 4, vm->cpu.registers[REG1]);
+    WRITE_WORD(vm, vm->cpu.stack_pointer -= 4, vm->cpu.registers[REG2]);
+    WRITE_WORD(vm, vm->cpu.stack_pointer -= 4, vm->cpu.registers[REG3]);
+    WRITE_WORD(vm, vm->cpu.stack_pointer -= 4, vm->cpu.registers[REG4]);
     vm->cpu.program_counter++;
     return true;
 }
@@ -679,10 +458,10 @@ static bool EXECUTE_MULTIPOP(TOYVM* vm)
         return false;
     }
     
-    vm->cpu.reg4 = READ_WORD(vm, vm->cpu.stack_pointer);
-    vm->cpu.reg3 = READ_WORD(vm, vm->cpu.stack_pointer + 4);
-    vm->cpu.reg2 = READ_WORD(vm, vm->cpu.stack_pointer + 8);
-    vm->cpu.reg1 = READ_WORD(vm, vm->cpu.stack_pointer + 12);
+    vm->cpu.registers[REG4] = READ_WORD(vm, vm->cpu.stack_pointer);
+    vm->cpu.registers[REG3] = READ_WORD(vm, vm->cpu.stack_pointer + 4);
+    vm->cpu.registers[REG2] = READ_WORD(vm, vm->cpu.stack_pointer + 8);
+    vm->cpu.registers[REG1] = READ_WORD(vm, vm->cpu.stack_pointer + 12);
     vm->cpu.stack_pointer += 16;
     vm->cpu.program_counter++;
     return true;
