@@ -14,9 +14,10 @@ const uint8_t DIV = 0x04;
 const uint8_t MOD = 0x05;
 
 /* Conditionals */
-const uint8_t JUMP_IF_ZERO = 0x10;
-const uint8_t JUMP_IF_NEG  = 0x11;
-const uint8_t JUMP_IF_POS  = 0x12;
+const uint8_t CMP = 0x10;
+const uint8_t JB  = 0x11; /* Jump if below. */
+const uint8_t JE  = 0x12; /* Jump if equal. */
+const uint8_t JA  = 0x13; /* Jump if above. */
 
 /* Subroutines */
 const uint8_t CALL = 0x20;
@@ -45,11 +46,13 @@ const uint8_t REG3 = 0x2;
 const uint8_t REG4 = 0x3;
 
 /* Status codes */
-const uint8_t STATUS_HALT_OK                = 0x1;
-const uint8_t STATUS_HALT_BAD_INSTRUCTION   = 0x2;
-const uint8_t STATUS_STACK_OVERFLOW         = 0x4;
-const uint8_t STATUS_STACK_UNDERFLOW        = 0x8;
-const uint8_t STATUS_INVALID_REGISTER_INDEX = 0x16;
+const uint8_t STATUS_HALT_BAD_INSTRUCTION   = 0x1;
+const uint8_t STATUS_STACK_OVERFLOW         = 0x2;
+const uint8_t STATUS_STACK_UNDERFLOW        = 0x4;
+const uint8_t STATUS_INVALID_REGISTER_INDEX = 0x8;
+const uint8_t STATUS_COMPARISON_BELOW       = 0x20;
+const uint8_t STATUS_COMPARISON_EQUAL       = 0x40;
+const uint8_t STATUS_COMPARISON_ABOVE       = 0x80;
 
 /* Interrupts */
 const uint8_t INTERRUPT_PRINT_INTEGER = 0x1;
@@ -75,6 +78,9 @@ size_t GET_INSTRUCTION_LENGTH(uint8_t opcode)
 {
     switch (opcode)
     {
+        case JB:
+        case JE:
+        case JA:
         case PUSH_ALL:
         case POP_ALL:
         case RET:
@@ -92,6 +98,7 @@ size_t GET_INSTRUCTION_LENGTH(uint8_t opcode)
         case MUL:
         case DIV:
         case MOD:
+        case CMP:
             return 3;
             
         case CALL:
@@ -100,9 +107,6 @@ size_t GET_INSTRUCTION_LENGTH(uint8_t opcode)
         case LOAD:
         case STORE:
         case CONST:
-        case JUMP_IF_NEG:
-        case JUMP_IF_ZERO:
-        case JUMP_IF_POS:
             return 6;
             
         default:
@@ -548,7 +552,7 @@ static bool EXECUTE_RET(TOYVM* vm)
     }
     
     vm->cpu.program_counter = POP_VM(vm);
-    return false;
+    return true;
 }
 
 static bool EXECUTE_LOAD(TOYVM* vm)
