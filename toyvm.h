@@ -120,6 +120,11 @@ static bool STACK_IS_FULL(TOYVM* vm)
     return vm->cpu.stack_pointer <= vm->stack_limit;
 }
 
+static size_t AVAILABLE_STACK_SIZE(TOYVM* vm)
+{
+    return vm->cpu.stack_pointer - vm->stack_limit;
+}
+
 static bool CAN_PERFORM_MULTIPUSH(TOYVM* vm)
 {
     /* 16 = 4 (registers) * 4 (bytes each) */
@@ -233,7 +238,7 @@ static bool EXECUTE_ADD(TOYVM* vm)
         += vm->cpu.registers[source_register_index];
     
     /* Advance the program counter past this instruction. */
-    vm->cpu.program_counter += 3;
+    vm->cpu.program_counter += GET_INSTRUCTION_LENGTH(ADD);
     return true;
 }
 
@@ -253,7 +258,7 @@ static bool EXECUTE_NEG(TOYVM* vm)
     }
     
     vm->cpu.registers[register_index] = -vm->cpu.registers[register_index];
-    vm->cpu.program_counter += 2;
+    vm->cpu.program_counter += GET_INSTRUCTION_LENGTH(NEG);
     return true;
 }
 
@@ -280,7 +285,7 @@ static bool EXECUTE_MUL(TOYVM* vm)
     vm->cpu.registers[target_register_index] *=
     vm->cpu.registers[source_register_index];
     /* Advance the program counter past this instruction. */
-    vm->cpu.program_counter += 3;
+    vm->cpu.program_counter += GET_INSTRUCTION_LENGTH(MUL);
     return true;
 }
 
@@ -307,7 +312,7 @@ static bool EXECUTE_DIV(TOYVM* vm)
     vm->cpu.registers[target_register_index] /=
     vm->cpu.registers[source_register_index];
     /* Advance the program counter past this instruction. */
-    vm->cpu.program_counter += 3;
+    vm->cpu.program_counter += GET_INSTRUCTION_LENGTH(DIV);
     return true;
 }
 
@@ -334,7 +339,7 @@ static bool EXECUTE_MOD(TOYVM* vm)
     vm->cpu.registers[target_register_index] %=
     vm->cpu.registers[source_register_index];
     /* Advance the program counter past this instruction. */
-    vm->cpu.program_counter += 3;
+    vm->cpu.program_counter += GET_INSTRUCTION_LENGTH(MOD);
     return true;
 }
 
@@ -356,7 +361,7 @@ static bool EXECUTE_CONST(TOYVM* vm)
     }
     
     vm->cpu.registers[register_index] = datum;
-    vm->cpu.program_counter += 6;
+    vm->cpu.program_counter += GET_INSTRUCTION_LENGTH(CONST);
     return true;
 }
 
@@ -385,7 +390,7 @@ static bool EXECUTE_PUSH(TOYVM* vm)
                vm->cpu.registers[register_index]);
     
     vm->cpu.stack_pointer -= 4;
-    vm->cpu.program_counter += 2;
+    vm->cpu.program_counter += GET_INSTRUCTION_LENGTH(PUSH);
     return true;
 }
 
@@ -412,7 +417,7 @@ static bool EXECUTE_POP(TOYVM* vm)
     int32_t datum = READ_WORD(vm, PROGRAM_COUNTER(vm) + 2);
     vm->cpu.registers[register_index] = datum;
     vm->cpu.stack_pointer += 4;
-    vm->cpu.program_counter += 2;
+    vm->cpu.program_counter += GET_INSTRUCTION_LENGTH(POP);
     return true;
 }
 
@@ -426,6 +431,11 @@ static uint32_t POP_VM(TOYVM* vm)
     uint32_t word = READ_WORD(vm, vm->cpu.stack_pointer);
     vm->cpu.stack_pointer += 4;
     return word;
+}
+
+static void PUSH_VM(TOYVM* vm, uint32_t value)
+{
+    WRITE_WORD(vm, vm->cpu.stack_pointer -= 4, value);
 }
 
 static void PRINT_STRING(TOYVM* vm, uint32_t address)
@@ -466,11 +476,11 @@ static bool EXECUTE_INTERRUPT(TOYVM* vm)
             return false;
     }
     
-    vm->cpu.program_counter += 2;
+    vm->cpu.program_counter += GET_INSTRUCTION_LENGTH(INT);
     return true;
 }
 
-static bool EXECUTE_MULTIPUSH(TOYVM* vm)
+static bool EXECUTE_PUSH_ALL(TOYVM* vm)
 {
     if (!CAN_PERFORM_MULTIPUSH(vm))
     {
@@ -482,11 +492,11 @@ static bool EXECUTE_MULTIPUSH(TOYVM* vm)
     WRITE_WORD(vm, vm->cpu.stack_pointer -= 4, vm->cpu.registers[REG2]);
     WRITE_WORD(vm, vm->cpu.stack_pointer -= 4, vm->cpu.registers[REG3]);
     WRITE_WORD(vm, vm->cpu.stack_pointer -= 4, vm->cpu.registers[REG4]);
-    vm->cpu.program_counter++;
+    vm->cpu.program_counter += GET_INSTRUCTION_LENGTH(PUSH_ALL);
     return true;
 }
 
-static bool EXECUTE_MULTIPOP(TOYVM* vm)
+static bool EXECUTE_POP_ALL(TOYVM* vm)
 {
     if (!CAN_PERFORM_MULTIPOP(vm))
     {
@@ -499,7 +509,76 @@ static bool EXECUTE_MULTIPOP(TOYVM* vm)
     vm->cpu.registers[REG2] = READ_WORD(vm, vm->cpu.stack_pointer + 8);
     vm->cpu.registers[REG1] = READ_WORD(vm, vm->cpu.stack_pointer + 12);
     vm->cpu.stack_pointer += 16;
-    vm->cpu.program_counter++;
+    vm->cpu.program_counter += GET_INSTRUCTION_LENGTH(POP_ALL);
+    return true;
+}
+
+static bool EXECUTE_CALL(TOYVM* vm)
+{
+    if (!INSTRUCTION_FITS_IN_MEMORY(vm, CALL))
+    {
+        return false;
+    }
+    
+    if (AVAILABLE_STACK_SIZE(vm) < 4)
+    {
+        vm->cpu.status |= STATUS_STACK_OVERFLOW;
+        return false;
+    }
+    
+    /* Save the return address on the stack. */
+    uint32_t address = READ_WORD(vm, PROGRAM_COUNTER(vm) + 1);
+    PUSH_VM(vm, (uint32_t)(PROGRAM_COUNTER(vm) + GET_INSTRUCTION_LENGTH(CALL)));
+    /* Actual jump to the subroutine. */
+    vm->cpu.program_counter = address;
+    return true;
+}
+
+static bool EXECUTE_RET(TOYVM* vm)
+{
+    if (!INSTRUCTION_FITS_IN_MEMORY(vm, RET))
+    {
+        return false;
+    }
+    
+    if (STACK_IS_EMPTY(vm))
+    {
+        vm->cpu.stack_pointer |= STATUS_STACK_UNDERFLOW;
+        return false;
+    }
+    
+    vm->cpu.program_counter = POP_VM(vm);
+    return false;
+}
+
+static bool EXECUTE_LOAD(TOYVM* vm)
+{
+    if (!INSTRUCTION_FITS_IN_MEMORY(vm, LOAD))
+    {
+        return false;
+    }
+    
+    uint8_t register_index = READ_BYTE(vm, PROGRAM_COUNTER(vm) + 1);
+    
+    if (!IS_VALID_REGISTER_INDEX(register_index))
+    {
+        vm->cpu.status |= STATUS_INVALID_REGISTER_INDEX;
+        return false;
+    }
+    
+    uint32_t address = READ_WORD(vm, PROGRAM_COUNTER(vm) + 2);
+    vm->cpu.registers[register_index] = READ_WORD(vm, address);
+    vm->cpu.program_counter += GET_INSTRUCTION_LENGTH(LOAD);
+    return true;
+}
+
+static bool EXECUTE_STORE(TOYVM* vm)
+{
+    if (!INSTRUCTION_FITS_IN_MEMORY(vm, STORE))
+    {
+        return false;
+    }
+    
     return true;
 }
 
@@ -533,6 +612,16 @@ void RUN_VM(TOYVM* vm)
                 
                 break;
                 
+            case CALL:
+                if (!EXECUTE_CALL(vm)) return;
+                
+                break;
+                
+            case RET:
+                if (!EXECUTE_RET(vm)) return;
+                
+                break;
+                
             case NEG:
                 if (!EXECUTE_NEG(vm)) return;
                 
@@ -540,6 +629,16 @@ void RUN_VM(TOYVM* vm)
                 
             case CONST:
                 if (!EXECUTE_CONST(vm)) return;
+                
+                break;
+                
+            case LOAD:
+                if (!EXECUTE_LOAD(vm)) return;
+                
+                break;
+                
+            case STORE:
+                if (!EXECUTE_STORE(vm)) return;
                 
                 break;
                 
@@ -554,12 +653,12 @@ void RUN_VM(TOYVM* vm)
                 break;
                 
             case PUSH_ALL:
-                if (!EXECUTE_MULTIPUSH(vm)) return;
+                if (!EXECUTE_PUSH_ALL(vm)) return;
                 
                 break;
                 
             case POP_ALL:
-                if (!EXECUTE_MULTIPOP(vm)) return;
+                if (!EXECUTE_POP_ALL(vm)) return;
                 
                 break;
                 
