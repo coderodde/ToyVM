@@ -15,9 +15,9 @@ const uint8_t MOD = 0x05;
 
 /* Conditionals */
 const uint8_t CMP = 0x10;
-const uint8_t JB  = 0x11; /* Jump if below. */
+const uint8_t JA  = 0x11; /* Jump if below. */
 const uint8_t JE  = 0x12; /* Jump if equal. */
-const uint8_t JA  = 0x13; /* Jump if above. */
+const uint8_t JB  = 0x13; /* Jump if above. */
 
 /* Subroutines */
 const uint8_t CALL = 0x20;
@@ -78,9 +78,6 @@ size_t GET_INSTRUCTION_LENGTH(uint8_t opcode)
 {
     switch (opcode)
     {
-        case JB:
-        case JE:
-        case JA:
         case PUSH_ALL:
         case POP_ALL:
         case RET:
@@ -102,6 +99,9 @@ size_t GET_INSTRUCTION_LENGTH(uint8_t opcode)
             return 3;
             
         case CALL:
+        case JA:
+        case JE:
+        case JB:
             return 5;
             
         case LOAD:
@@ -583,6 +583,105 @@ static bool EXECUTE_STORE(TOYVM* vm)
         return false;
     }
     
+    uint8_t register_index = READ_BYTE(vm, PROGRAM_COUNTER(vm) + 1);
+    
+    if (!IS_VALID_REGISTER_INDEX(register_index))
+    {
+        vm->cpu.status |= STATUS_INVALID_REGISTER_INDEX;
+        return false;
+    }
+    
+    uint32_t address = READ_WORD(vm, PROGRAM_COUNTER(vm) + 2);
+    WRITE_WORD(vm, address, vm->cpu.registers[register_index]);
+    return true;
+}
+
+static bool EXECUTE_CMP(TOYVM* vm)
+{
+    if (!INSTRUCTION_FITS_IN_MEMORY(vm, CMP))
+    {
+        return false;
+    }
+    
+    uint8_t register_index_1 = READ_BYTE(vm, PROGRAM_COUNTER(vm) + 1);
+    uint8_t register_index_2 = READ_BYTE(vm, PROGRAM_COUNTER(vm) + 2);
+    
+    if (!IS_VALID_REGISTER_INDEX(register_index_1)
+        || !IS_VALID_REGISTER_INDEX(register_index_2))
+    {
+        vm->cpu.status |= STATUS_INVALID_REGISTER_INDEX;
+        return false;
+    }
+    
+    int32_t register_1 = vm->cpu.registers[register_index_1];
+    int32_t register_2 = vm->cpu.registers[register_index_2];
+    
+    if (register_1 < register_2)
+    {
+        vm->cpu.status |= STATUS_COMPARISON_BELOW;
+        /* Set to zero two other comparison flags. */
+        uint8_t mask = ~(STATUS_COMPARISON_EQUAL | STATUS_COMPARISON_ABOVE);
+        vm->cpu.status &= mask;
+    }
+    else if (register_1 > register_2)
+    {
+        vm->cpu.status |= STATUS_COMPARISON_ABOVE;
+        /* Set to zero two other comparison flags. */
+        uint8_t mask = ~(STATUS_COMPARISON_EQUAL | STATUS_COMPARISON_BELOW);
+        vm->cpu.status &= mask;
+    }
+    else
+    {
+        vm->cpu.status |= STATUS_COMPARISON_EQUAL;
+        uint8_t mask = ~(STATUS_COMPARISON_BELOW | STATUS_COMPARISON_ABOVE);
+        vm->cpu.status &= mask;
+    }
+    
+    return true;
+}
+
+static bool EXECUTE_JA(TOYVM* vm)
+{
+    if (!INSTRUCTION_FITS_IN_MEMORY(vm, JA))
+    {
+        return false;
+    }
+    
+    if (vm->cpu.status | STATUS_COMPARISON_ABOVE)
+    {
+        vm->cpu.program_counter = READ_WORD(vm, PROGRAM_COUNTER(vm) + 1);
+    }
+    
+    return true;
+}
+
+static bool EXECUTE_JE(TOYVM* vm)
+{
+    if (!INSTRUCTION_FITS_IN_MEMORY(vm, JE))
+    {
+        return false;
+    }
+    
+    if (vm->cpu.status | STATUS_COMPARISON_EQUAL)
+    {
+        vm->cpu.program_counter = READ_WORD(vm, PROGRAM_COUNTER(vm) + 1);
+    }
+    
+    return true;
+}
+
+static bool EXECUTE_JB(TOYVM* vm)
+{
+    if (!INSTRUCTION_FITS_IN_MEMORY(vm, JB))
+    {
+        return false;
+    }
+    
+    if (vm->cpu.status | STATUS_COMPARISON_BELOW)
+    {
+        vm->cpu.program_counter = READ_WORD(vm, PROGRAM_COUNTER(vm) + 1);
+    }
+    
     return true;
 }
 
@@ -631,6 +730,26 @@ void RUN_VM(TOYVM* vm)
                 
                 break;
                 
+            case CMP:
+                if (!EXECUTE_CMP(vm)) return;
+                
+                break;
+                
+            case JA:
+                if (!EXECUTE_JA(vm)) return;
+                
+                break;
+                
+            case JE:
+                if (!EXECUTE_JE(vm)) return;
+                
+                break;
+                
+            case JB:
+                if (!EXECUTE_JB(vm)) return;
+                
+                break;
+                
             case CONST:
                 if (!EXECUTE_CONST(vm)) return;
                 
@@ -669,6 +788,10 @@ void RUN_VM(TOYVM* vm)
             case INT:
                 if (!EXECUTE_INTERRUPT(vm)) return;
                 
+                break;
+                
+            case NOP:
+                /* Do nothing. */
                 break;
                 
             case HALT:
