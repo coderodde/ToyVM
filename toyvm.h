@@ -58,11 +58,7 @@ const uint8_t INTERRUPT_PRINT_STRING  = 0x2;
 const size_t N_REGISTERS = 4;
 
 typedef struct VM_CPU {
-    int32_t registers[4];
-/*    int32_t reg1;
-    int32_t reg2;
-    int32_t reg3;
-    int32_t reg4;*/
+    int32_t registers[N_REGISTERS];
     size_t  program_counter;
     int32_t stack_pointer;
     uint8_t status;
@@ -74,6 +70,45 @@ typedef struct TOYVM {
     int32_t  stack_limit;
     VM_CPU   cpu;
 } TOYVM;
+
+size_t GET_INSTRUCTION_LENGTH(uint8_t opcode)
+{
+    switch (opcode)
+    {
+        case PUSH_ALL:
+        case POP_ALL:
+        case RET:
+        case HALT:
+        case NOP:
+            return 1;
+            
+        case PUSH:
+        case POP:
+        case NEG:
+        case INT:
+            return 2;
+            
+        case ADD:
+        case MUL:
+        case DIV:
+        case MOD:
+            return 3;
+            
+        case CALL:
+            return 5;
+            
+        case LOAD:
+        case STORE:
+        case CONST:
+        case JUMP_IF_NEG:
+        case JUMP_IF_ZERO:
+        case JUMP_IF_POS:
+            return 6;
+            
+        default:
+            return 0;
+    }
+}
 
 static bool STACK_IS_EMPTY(TOYVM* vm)
 {
@@ -163,8 +198,9 @@ static bool IS_VALID_REGISTER_INDEX(uint8_t byte)
 * if start counting its bytes from the memory address pointed to by program    *
 * counter.                                                                     *
 *******************************************************************************/
-static bool INSTRUCTION_FITS_IN_MEMORY(TOYVM* vm, size_t instruction_length)
+static bool INSTRUCTION_FITS_IN_MEMORY(TOYVM* vm, uint8_t opcode)
 {
+    size_t instruction_length = GET_INSTRUCTION_LENGTH(opcode);
     return vm->cpu.program_counter + instruction_length < vm->memory_size + 1;
 }
 
@@ -178,7 +214,7 @@ static bool EXECUTE_ADD(TOYVM* vm)
     uint8_t source_register_index;
     uint8_t target_register_index;
     
-    if (!INSTRUCTION_FITS_IN_MEMORY(vm, 3))
+    if (!INSTRUCTION_FITS_IN_MEMORY(vm, ADD))
     {
         return false;
     }
@@ -203,7 +239,7 @@ static bool EXECUTE_ADD(TOYVM* vm)
 
 static bool EXECUTE_NEG(TOYVM* vm)
 {
-    if (!INSTRUCTION_FITS_IN_MEMORY(vm, 2))
+    if (!INSTRUCTION_FITS_IN_MEMORY(vm, NEG))
     {
         return false;
     }
@@ -216,7 +252,7 @@ static bool EXECUTE_NEG(TOYVM* vm)
         return false;
     }
     
-    vm->cpu.registers[register_index] = vm->cpu.registers[register_index];
+    vm->cpu.registers[register_index] = -vm->cpu.registers[register_index];
     vm->cpu.program_counter += 2;
     return true;
 }
@@ -226,7 +262,7 @@ static bool EXECUTE_MUL(TOYVM* vm)
     uint8_t source_register_index;
     uint8_t target_register_index;
     
-    if (!INSTRUCTION_FITS_IN_MEMORY(vm, 3))
+    if (!INSTRUCTION_FITS_IN_MEMORY(vm, MUL))
     {
         return false;
     }
@@ -253,7 +289,7 @@ static bool EXECUTE_DIV(TOYVM* vm)
     uint8_t source_register_index;
     uint8_t target_register_index;
     
-    if (!INSTRUCTION_FITS_IN_MEMORY(vm, 3))
+    if (!INSTRUCTION_FITS_IN_MEMORY(vm, DIV))
     {
         return false;
     }
@@ -280,7 +316,7 @@ static bool EXECUTE_MOD(TOYVM* vm)
     uint8_t source_register_index;
     uint8_t target_register_index;
     
-    if (!INSTRUCTION_FITS_IN_MEMORY(vm, 3))
+    if (!INSTRUCTION_FITS_IN_MEMORY(vm, MOD))
     {
         return false;
     }
@@ -295,7 +331,7 @@ static bool EXECUTE_MOD(TOYVM* vm)
         return false;
     }
     
-    vm->cpu.registers[target_register_index] /=
+    vm->cpu.registers[target_register_index] %=
     vm->cpu.registers[source_register_index];
     /* Advance the program counter past this instruction. */
     vm->cpu.program_counter += 3;
@@ -304,7 +340,7 @@ static bool EXECUTE_MOD(TOYVM* vm)
 
 static bool EXECUTE_CONST(TOYVM* vm)
 {
-    if (!INSTRUCTION_FITS_IN_MEMORY(vm, 6))
+    if (!INSTRUCTION_FITS_IN_MEMORY(vm, CONST))
     {
         return false;
     }
@@ -326,7 +362,7 @@ static bool EXECUTE_CONST(TOYVM* vm)
 
 static bool EXECUTE_PUSH(TOYVM* vm)
 {
-    if (!INSTRUCTION_FITS_IN_MEMORY(vm, 2))
+    if (!INSTRUCTION_FITS_IN_MEMORY(vm, PUSH))
     {
         return false;
     }
@@ -355,7 +391,7 @@ static bool EXECUTE_PUSH(TOYVM* vm)
 
 static bool EXECUTE_POP(TOYVM* vm)
 {
-    if (!INSTRUCTION_FITS_IN_MEMORY(vm, 2))
+    if (!INSTRUCTION_FITS_IN_MEMORY(vm, POP))
     {
         return false;
     }
@@ -399,7 +435,7 @@ static void PRINT_STRING(TOYVM* vm, uint32_t address)
 
 static bool EXECUTE_INTERRUPT(TOYVM* vm)
 {
-    if (!INSTRUCTION_FITS_IN_MEMORY(vm, 2))
+    if (!INSTRUCTION_FITS_IN_MEMORY(vm, INT))
     {
         return false;
     }
