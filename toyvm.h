@@ -50,6 +50,7 @@ const uint8_t STATUS_HALT_BAD_INSTRUCTION   = 0x1;
 const uint8_t STATUS_STACK_OVERFLOW         = 0x2;
 const uint8_t STATUS_STACK_UNDERFLOW        = 0x4;
 const uint8_t STATUS_INVALID_REGISTER_INDEX = 0x8;
+const uint8_t STATUS_BAD_ACCESS             = 0x10;
 const uint8_t STATUS_COMPARISON_BELOW       = 0x20;
 const uint8_t STATUS_COMPARISON_EQUAL       = 0x40;
 const uint8_t STATUS_COMPARISON_ABOVE       = 0x80;
@@ -225,6 +226,7 @@ static bool EXECUTE_ADD(TOYVM* vm)
     
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, ADD))
     {
+        vm->cpu.status |= STATUS_BAD_ACCESS;
         return false;
     }
     
@@ -250,6 +252,7 @@ static bool EXECUTE_NEG(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, NEG))
     {
+        vm->cpu.status |= STATUS_BAD_ACCESS;
         return false;
     }
     
@@ -273,6 +276,7 @@ static bool EXECUTE_MUL(TOYVM* vm)
     
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, MUL))
     {
+        vm->cpu.status |= STATUS_BAD_ACCESS;
         return false;
     }
     
@@ -300,6 +304,7 @@ static bool EXECUTE_DIV(TOYVM* vm)
     
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, DIV))
     {
+        vm->cpu.status |= STATUS_BAD_ACCESS;
         return false;
     }
     
@@ -327,6 +332,7 @@ static bool EXECUTE_MOD(TOYVM* vm)
     
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, MOD))
     {
+        vm->cpu.status |= STATUS_BAD_ACCESS;
         return false;
     }
     
@@ -351,6 +357,7 @@ static bool EXECUTE_CONST(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, CONST))
     {
+        vm->cpu.status |= STATUS_BAD_ACCESS;
         return false;
     }
     
@@ -373,6 +380,7 @@ static bool EXECUTE_PUSH(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, PUSH))
     {
+        vm->cpu.status |= STATUS_BAD_ACCESS;
         return false;
     }
     
@@ -402,6 +410,7 @@ static bool EXECUTE_POP(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, POP))
     {
+        vm->cpu.status |= STATUS_BAD_ACCESS;
         return false;
     }
     
@@ -429,6 +438,7 @@ static uint32_t POP_VM(TOYVM* vm)
 {
     if (STACK_IS_EMPTY(vm))
     {
+        vm->cpu.status |= STATUS_BAD_ACCESS;
         return 0;
     }
     
@@ -451,6 +461,7 @@ static bool EXECUTE_INTERRUPT(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, INT))
     {
+        vm->cpu.status |= STATUS_BAD_ACCESS;
         return false;
     }
     
@@ -486,6 +497,12 @@ static bool EXECUTE_INTERRUPT(TOYVM* vm)
 
 static bool EXECUTE_PUSH_ALL(TOYVM* vm)
 {
+    if (!INSTRUCTION_FITS_IN_MEMORY(vm, PUSH_ALL))
+    {
+        vm->cpu.status |= STATUS_BAD_ACCESS;
+        return false;
+    }
+    
     if (!CAN_PERFORM_MULTIPUSH(vm))
     {
         vm->cpu.status |= STATUS_STACK_OVERFLOW;
@@ -502,6 +519,12 @@ static bool EXECUTE_PUSH_ALL(TOYVM* vm)
 
 static bool EXECUTE_POP_ALL(TOYVM* vm)
 {
+    if (!INSTRUCTION_FITS_IN_MEMORY(vm, POP_ALL))
+    {
+        vm->cpu.status |= STATUS_BAD_ACCESS;
+        return false;
+    }
+    
     if (!CAN_PERFORM_MULTIPOP(vm))
     {
         vm->cpu.status |= STATUS_STACK_UNDERFLOW;
@@ -521,6 +544,7 @@ static bool EXECUTE_CALL(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, CALL))
     {
+        vm->cpu.status |= STATUS_BAD_ACCESS;
         return false;
     }
     
@@ -542,6 +566,7 @@ static bool EXECUTE_RET(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, RET))
     {
+        vm->cpu.status |= STATUS_BAD_ACCESS;
         return false;
     }
     
@@ -559,6 +584,7 @@ static bool EXECUTE_LOAD(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, LOAD))
     {
+        vm->cpu.status |= STATUS_BAD_ACCESS;
         return false;
     }
     
@@ -580,6 +606,7 @@ static bool EXECUTE_STORE(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, STORE))
     {
+        vm->cpu.status |= STATUS_BAD_ACCESS;
         return false;
     }
     
@@ -600,6 +627,7 @@ static bool EXECUTE_CMP(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, CMP))
     {
+        vm->cpu.status |= STATUS_BAD_ACCESS;
         return false;
     }
     
@@ -644,6 +672,7 @@ static bool EXECUTE_JA(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, JA))
     {
+        vm->cpu.status |= STATUS_BAD_ACCESS;
         return false;
     }
     
@@ -659,6 +688,7 @@ static bool EXECUTE_JE(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, JE))
     {
+        vm->cpu.status |= STATUS_BAD_ACCESS;
         return false;
     }
     
@@ -674,6 +704,7 @@ static bool EXECUTE_JB(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, JB))
     {
+        vm->cpu.status |= STATUS_BAD_ACCESS;
         return false;
     }
     
