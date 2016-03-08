@@ -57,19 +57,28 @@ int main(int argc, const char * argv[]) {
     vm.memory[31] = REG1;
     vm.memory[32] = REG4;*/
     
-    vm.memory[0] = CONST;
+/*    vm.memory[0] = CONST;
     vm.memory[1] = REG3;
     WRITE_WORD(&vm, 2, 12345678);
     vm.memory[6] = PUSH;
     vm.memory[7] = REG3;
     vm.memory[8] = INT;
-    vm.memory[9] = INTERRUPT_PRINT_INTEGER;
+    vm.memory[9] = INTERRUPT_PRINT_INTEGER;*/
+    
+    vm.memory[0] = CONST;
+    vm.memory[1] = REG1;
+    WRITE_WORD(&vm, 2, 10);
+    vm.memory[6] = PUSH;
+    vm.memory[7] = REG1;
+    vm.memory[8] = INT;
+    vm.memory[9] = INTERRUPT_PRINT_STRING;
+    memcpy(&vm.memory[10], "Funky yeah!", 11);
     
     RUN_VM(&vm);
     
-    printf("REG1: %u\n", vm.cpu.registers[REG1]);
+/*    printf("REG1: %u\n", vm.cpu.registers[REG1]);
     printf("REG2: %u\n", vm.cpu.registers[REG2]);
     printf("REG3: %u\n", vm.cpu.registers[REG3]);
-    printf("REG4: %u\n", vm.cpu.registers[REG4]);
+    printf("REG4: %u\n", vm.cpu.registers[REG4]);*/
     return 0;
 }
