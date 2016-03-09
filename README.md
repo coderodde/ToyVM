@@ -27,7 +27,7 @@ The first byte is always an opcode specifying the instruction. It is immediately
 * **`0x13`**: **`JB ADDRESS`** - jumps to address **`ADDRESS`** only if the **`vm.cpu.status`** has flag **`COMPARISON_BELOW`** on.
 * **`0x14`**: **`JMP ADDRESS`** - jumps unconditionally to address **`ADDRESS`**.
 
-#### Subroutines
+### Subroutines
 * **`0x20`**: **`CALL ADDRESS`** - pushes the return address (i.e., **`ADDRESS + 5`**) into the stack and jumps to the instruction at the specified address. 
 * **`0x21`**: **`RET`** - pops the return address and sets it to the program counter, hence returning from a subroutine.
 
