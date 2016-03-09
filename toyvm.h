@@ -18,6 +18,7 @@ const uint8_t CMP = 0x10;
 const uint8_t JA  = 0x11; /* Jump if above. */
 const uint8_t JE  = 0x12; /* Jump if equal. */
 const uint8_t JB  = 0x13; /* Jump if below. */
+const uint8_t JMP = 0x14; /* Unconditional jump for implementing loops. */
 
 /* Subroutines */
 const uint8_t CALL = 0x20;
@@ -66,7 +67,17 @@ typedef struct VM_CPU {
     int32_t registers[N_REGISTERS];
     int32_t program_counter;
     int32_t stack_pointer;
-    uint8_t status;
+    
+    struct {
+        uint8_t HALT_BAD_INSTRUCTION   : 1;
+        uint8_t STACK_UNDERFLOW        : 1;
+        uint8_t STACK_OVERFLOW         : 1;
+        uint8_t INVALID_REGISTER_INDEX : 1;
+        uint8_t BAD_ACCESS             : 1;
+        uint8_t COMPARISON_BELOW       : 1;
+        uint8_t COMPARISON_EQUAL       : 1;
+        uint8_t COMPARISON_ABOVE       : 1;
+    } status;
 } VM_CPU;
 
 typedef struct TOYVM {
@@ -105,6 +116,7 @@ size_t GET_INSTRUCTION_LENGTH(uint8_t opcode)
         case JA:
         case JE:
         case JB:
+        case JMP:
             return 5;
             
         case LOAD:
@@ -202,7 +214,7 @@ static int32_t POP_VM(TOYVM* vm)
 {
     if (STACK_IS_EMPTY(vm))
     {
-        vm->cpu.status |= STATUS_BAD_ACCESS;
+        vm->cpu.status.BAD_ACCESS = 1;
         return 0;
     }
     
@@ -251,7 +263,7 @@ static bool EXECUTE_ADD(TOYVM* vm)
     
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, ADD))
     {
-        vm->cpu.status |= STATUS_BAD_ACCESS;
+        vm->cpu.status.BAD_ACCESS = 1;
         return false;
     }
     
@@ -261,7 +273,7 @@ static bool EXECUTE_ADD(TOYVM* vm)
     if (!IS_VALID_REGISTER_INDEX(source_register_index) ||
         !IS_VALID_REGISTER_INDEX(target_register_index))
     {
-        vm->cpu.status |= STATUS_INVALID_REGISTER_INDEX;
+        vm->cpu.status.INVALID_REGISTER_INDEX = 1;
         return false;
     }
     
@@ -277,7 +289,7 @@ static bool EXECUTE_NEG(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, NEG))
     {
-        vm->cpu.status |= STATUS_BAD_ACCESS;
+        vm->cpu.status.BAD_ACCESS = 1;
         return false;
     }
     
@@ -285,7 +297,7 @@ static bool EXECUTE_NEG(TOYVM* vm)
     
     if (!IS_VALID_REGISTER_INDEX(register_index))
     {
-        vm->cpu.status |= STATUS_INVALID_REGISTER_INDEX;
+        vm->cpu.status.INVALID_REGISTER_INDEX = 1;
         return false;
     }
     
@@ -301,7 +313,7 @@ static bool EXECUTE_MUL(TOYVM* vm)
     
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, MUL))
     {
-        vm->cpu.status |= STATUS_BAD_ACCESS;
+        vm->cpu.status.BAD_ACCESS = 1;
         return false;
     }
     
@@ -311,7 +323,7 @@ static bool EXECUTE_MUL(TOYVM* vm)
     if (!IS_VALID_REGISTER_INDEX(source_register_index) ||
         !IS_VALID_REGISTER_INDEX(target_register_index))
     {
-        vm->cpu.status |= STATUS_INVALID_REGISTER_INDEX;
+        vm->cpu.status.INVALID_REGISTER_INDEX = 1;
         return false;
     }
     
@@ -329,7 +341,7 @@ static bool EXECUTE_DIV(TOYVM* vm)
     
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, DIV))
     {
-        vm->cpu.status |= STATUS_BAD_ACCESS;
+        vm->cpu.status.BAD_ACCESS = 1;
         return false;
     }
     
@@ -339,7 +351,7 @@ static bool EXECUTE_DIV(TOYVM* vm)
     if (!IS_VALID_REGISTER_INDEX(source_register_index) ||
         !IS_VALID_REGISTER_INDEX(target_register_index))
     {
-        vm->cpu.status |= STATUS_INVALID_REGISTER_INDEX;
+        vm->cpu.status.INVALID_REGISTER_INDEX = 1;
         return false;
     }
     
@@ -357,7 +369,7 @@ static bool EXECUTE_MOD(TOYVM* vm)
     
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, MOD))
     {
-        vm->cpu.status |= STATUS_BAD_ACCESS;
+        vm->cpu.status.BAD_ACCESS = 1;
         return false;
     }
     
@@ -367,7 +379,7 @@ static bool EXECUTE_MOD(TOYVM* vm)
     if (!IS_VALID_REGISTER_INDEX(source_register_index) ||
         !IS_VALID_REGISTER_INDEX(target_register_index))
     {
-        vm->cpu.status |= STATUS_INVALID_REGISTER_INDEX;
+        vm->cpu.status.INVALID_REGISTER_INDEX = 1;
         return false;
     }
     
@@ -382,7 +394,7 @@ static bool EXECUTE_CMP(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, CMP))
     {
-        vm->cpu.status |= STATUS_BAD_ACCESS;
+        vm->cpu.status.BAD_ACCESS = 1;
         return false;
     }
     
@@ -392,7 +404,7 @@ static bool EXECUTE_CMP(TOYVM* vm)
     if (!IS_VALID_REGISTER_INDEX(register_index_1) ||
         !IS_VALID_REGISTER_INDEX(register_index_2))
     {
-        vm->cpu.status |= STATUS_INVALID_REGISTER_INDEX;
+        vm->cpu.status.INVALID_REGISTER_INDEX = 1;
         return false;
     }
     
@@ -401,25 +413,24 @@ static bool EXECUTE_CMP(TOYVM* vm)
     
     if (register_1 < register_2)
     {
-        vm->cpu.status |= STATUS_COMPARISON_BELOW;
-        /* Set to zero two other comparison flags. */
-        uint8_t mask = ~(STATUS_COMPARISON_EQUAL | STATUS_COMPARISON_ABOVE);
-        vm->cpu.status &= mask;
+        vm->cpu.status.COMPARISON_ABOVE = 0;
+        vm->cpu.status.COMPARISON_EQUAL = 0;
+        vm->cpu.status.COMPARISON_BELOW = 1;
     }
     else if (register_1 > register_2)
     {
-        vm->cpu.status |= STATUS_COMPARISON_ABOVE;
-        /* Set to zero two other comparison flags. */
-        uint8_t mask = ~(STATUS_COMPARISON_EQUAL | STATUS_COMPARISON_BELOW);
-        vm->cpu.status &= mask;
+        vm->cpu.status.COMPARISON_ABOVE = 1;
+        vm->cpu.status.COMPARISON_EQUAL = 0;
+        vm->cpu.status.COMPARISON_BELOW = 0;
     }
     else
     {
-        vm->cpu.status |= STATUS_COMPARISON_EQUAL;
-        uint8_t mask = ~(STATUS_COMPARISON_BELOW | STATUS_COMPARISON_ABOVE);
-        vm->cpu.status &= mask;
+        vm->cpu.status.COMPARISON_ABOVE = 0;
+        vm->cpu.status.COMPARISON_EQUAL = 1;
+        vm->cpu.status.COMPARISON_BELOW = 0;
     }
     
+    vm->cpu.program_counter += GET_INSTRUCTION_LENGTH(CMP);
     return true;
 }
 
@@ -427,13 +438,17 @@ static bool EXECUTE_JA(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, JA))
     {
-        vm->cpu.status |= STATUS_BAD_ACCESS;
+        vm->cpu.status.BAD_ACCESS = 1;
         return false;
     }
     
-    if (vm->cpu.status | STATUS_COMPARISON_ABOVE)
+    if (vm->cpu.status.COMPARISON_ABOVE)
     {
         vm->cpu.program_counter = READ_WORD(vm, PROGRAM_COUNTER(vm) + 1);
+    }
+    else
+    {
+        vm->cpu.program_counter += GET_INSTRUCTION_LENGTH(JA);
     }
     
     return true;
@@ -443,13 +458,17 @@ static bool EXECUTE_JE(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, JE))
     {
-        vm->cpu.status |= STATUS_BAD_ACCESS;
+        vm->cpu.status.BAD_ACCESS = 1;
         return false;
     }
     
-    if (vm->cpu.status | STATUS_COMPARISON_EQUAL)
+    if (vm->cpu.status.COMPARISON_EQUAL)
     {
         vm->cpu.program_counter = READ_WORD(vm, PROGRAM_COUNTER(vm) + 1);
+    }
+    else
+    {
+        vm->cpu.program_counter += GET_INSTRUCTION_LENGTH(JE);
     }
     
     return true;
@@ -459,15 +478,31 @@ static bool EXECUTE_JB(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, JB))
     {
-        vm->cpu.status |= STATUS_BAD_ACCESS;
+        vm->cpu.status.BAD_ACCESS = 1;
         return false;
     }
     
-    if (vm->cpu.status | STATUS_COMPARISON_BELOW)
+    if (vm->cpu.status.COMPARISON_BELOW)
     {
         vm->cpu.program_counter = READ_WORD(vm, PROGRAM_COUNTER(vm) + 1);
     }
+    else
+    {
+        vm->cpu.program_counter += GET_INSTRUCTION_LENGTH(JB);
+    }
     
+    return true;
+}
+
+static bool EXECUTE_JMP(TOYVM* vm)
+{
+    if (!INSTRUCTION_FITS_IN_MEMORY(vm, JMP))
+    {
+        vm->cpu.status.BAD_ACCESS = 1;
+        return false;
+    }
+    
+    vm->cpu.program_counter = READ_WORD(vm, PROGRAM_COUNTER(vm) + 1);
     return true;
 }
 
@@ -475,13 +510,13 @@ static bool EXECUTE_CALL(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, CALL))
     {
-        vm->cpu.status |= STATUS_BAD_ACCESS;
+        vm->cpu.status.BAD_ACCESS = 1;
         return false;
     }
     
     if (AVAILABLE_STACK_SIZE(vm) < 4)
     {
-        vm->cpu.status |= STATUS_STACK_OVERFLOW;
+        vm->cpu.status.STACK_OVERFLOW = 1;
         return false;
     }
     
@@ -497,7 +532,7 @@ static bool EXECUTE_RET(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, RET))
     {
-        vm->cpu.status |= STATUS_BAD_ACCESS;
+        vm->cpu.status.BAD_ACCESS = 1;
         return false;
     }
     
@@ -515,7 +550,7 @@ static bool EXECUTE_LOAD(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, LOAD))
     {
-        vm->cpu.status |= STATUS_BAD_ACCESS;
+        vm->cpu.status.BAD_ACCESS = 1;
         return false;
     }
     
@@ -523,7 +558,7 @@ static bool EXECUTE_LOAD(TOYVM* vm)
     
     if (!IS_VALID_REGISTER_INDEX(register_index))
     {
-        vm->cpu.status |= STATUS_INVALID_REGISTER_INDEX;
+        vm->cpu.status.INVALID_REGISTER_INDEX = 1;
         return false;
     }
     
@@ -537,7 +572,7 @@ static bool EXECUTE_STORE(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, STORE))
     {
-        vm->cpu.status |= STATUS_BAD_ACCESS;
+        vm->cpu.status.BAD_ACCESS = 1;
         return false;
     }
     
@@ -545,7 +580,7 @@ static bool EXECUTE_STORE(TOYVM* vm)
     
     if (!IS_VALID_REGISTER_INDEX(register_index))
     {
-        vm->cpu.status |= STATUS_INVALID_REGISTER_INDEX;
+        vm->cpu.status.INVALID_REGISTER_INDEX = 1;
         return false;
     }
     
@@ -558,7 +593,7 @@ static bool EXECUTE_CONST(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, CONST))
     {
-        vm->cpu.status |= STATUS_BAD_ACCESS;
+        vm->cpu.status.BAD_ACCESS = 1;
         return false;
     }
     
@@ -567,7 +602,7 @@ static bool EXECUTE_CONST(TOYVM* vm)
     
     if (!IS_VALID_REGISTER_INDEX(register_index))
     {
-        vm->cpu.status |= STATUS_INVALID_REGISTER_INDEX;
+        vm->cpu.status.INVALID_REGISTER_INDEX = 1;
         return false;
     }
     
@@ -585,7 +620,7 @@ static bool EXECUTE_INT(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, INT))
     {
-        vm->cpu.status |= STATUS_BAD_ACCESS;
+        vm->cpu.status.BAD_ACCESS = 1;
         return false;
     }
     
@@ -623,7 +658,7 @@ static bool EXECUTE_PUSH(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, PUSH))
     {
-        vm->cpu.status |= STATUS_BAD_ACCESS;
+        vm->cpu.status.BAD_ACCESS = 1;
         return false;
     }
     
@@ -636,7 +671,7 @@ static bool EXECUTE_PUSH(TOYVM* vm)
     
     if (!IS_VALID_REGISTER_INDEX(register_index))
     {
-        vm->cpu.status |= STATUS_INVALID_REGISTER_INDEX;
+        vm->cpu.status.INVALID_REGISTER_INDEX = 1;
         return false;
     }
     
@@ -653,13 +688,13 @@ static bool EXECUTE_PUSH_ALL(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, PUSH_ALL))
     {
-        vm->cpu.status |= STATUS_BAD_ACCESS;
+        vm->cpu.status.BAD_ACCESS = 1;
         return false;
     }
     
     if (!CAN_PERFORM_MULTIPUSH(vm))
     {
-        vm->cpu.status |= STATUS_STACK_OVERFLOW;
+        vm->cpu.status.STACK_OVERFLOW = 1;
         return false;
     }
     
@@ -675,7 +710,7 @@ static bool EXECUTE_POP(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, POP))
     {
-        vm->cpu.status |= STATUS_BAD_ACCESS;
+        vm->cpu.status.BAD_ACCESS = 1;
         return false;
     }
     
@@ -688,7 +723,7 @@ static bool EXECUTE_POP(TOYVM* vm)
     
     if (!IS_VALID_REGISTER_INDEX(register_index))
     {
-        vm->cpu.status |= STATUS_INVALID_REGISTER_INDEX;
+        vm->cpu.status.INVALID_REGISTER_INDEX = 1;
         return false;
     }
     
@@ -703,13 +738,13 @@ static bool EXECUTE_POP_ALL(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, POP_ALL))
     {
-        vm->cpu.status |= STATUS_BAD_ACCESS;
+        vm->cpu.status.BAD_ACCESS = 1;
         return false;
     }
     
     if (!CAN_PERFORM_MULTIPOP(vm))
     {
-        vm->cpu.status |= STATUS_STACK_UNDERFLOW;
+        vm->cpu.status.STACK_UNDERFLOW = 1;
         return false;
     }
     
@@ -726,7 +761,7 @@ static bool EXECUTE_LSP(TOYVM* vm)
 {
     if (!INSTRUCTION_FITS_IN_MEMORY(vm, LSP))
     {
-        vm->cpu.status |= STATUS_BAD_ACCESS;
+        vm->cpu.status.BAD_ACCESS = 1;
         return false;
     }
     
@@ -734,12 +769,26 @@ static bool EXECUTE_LSP(TOYVM* vm)
     
     if (!IS_VALID_REGISTER_INDEX(register_index))
     {
-        vm->cpu.status |= STATUS_INVALID_REGISTER_INDEX;
+        vm->cpu.status.INVALID_REGISTER_INDEX = 1;
         return false;
     }
     
     vm->cpu.registers[register_index] = vm->cpu.stack_pointer;
     return true;
+}
+
+void PRINT_STATUS(TOYVM* vm)
+{
+    printf("HALT_BAD_INSTRUCTION  : %d\n", vm->cpu.status.HALT_BAD_INSTRUCTION);
+    printf("STACK_UNDERFLOW       : %d\n", vm->cpu.status.STACK_UNDERFLOW);
+    printf("STACK_OVERFLOW        : %d\n", vm->cpu.status.STACK_OVERFLOW);
+    printf("INVALID_REGISTER_INDEX: %d\n",
+            vm->cpu.status.INVALID_REGISTER_INDEX);
+    
+    printf("BAD_ACCESS            : %d\n", vm->cpu.status.BAD_ACCESS);
+    printf("COMPARISON_ABOVE      : %d\n", vm->cpu.status.COMPARISON_ABOVE);
+    printf("COMPARISON_EQUAL      : %d\n", vm->cpu.status.COMPARISON_EQUAL);
+    printf("COMPARISON_BELOW      : %d\n", vm->cpu.status.COMPARISON_BELOW);
 }
 
 void RUN_VM(TOYVM* vm)
@@ -794,6 +843,11 @@ void RUN_VM(TOYVM* vm)
                 
             case JB:
                 if (!EXECUTE_JB(vm)) return;
+                
+                break;
+                
+            case JMP:
+                if (!EXECUTE_JMP(vm)) return;
                 
                 break;
                 
@@ -860,6 +914,7 @@ void RUN_VM(TOYVM* vm)
                 break;
                 
             default:
+                vm->cpu.status.HALT_BAD_INSTRUCTION = 1;
                 return;
         }
     }
