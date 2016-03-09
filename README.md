@@ -5,7 +5,7 @@ A simple virtual machine written in C.
 Just like Intel-based computers, ToyVM is little-endian.
 
 ### Registers
-ToyVM features four 32-bit registers: **`REG1, REG2, REG3, REG4`**. Each of them are represented as a single byte with values `0x0`, `0x1`, `0x2`, `0x3`, respectively.
+ToyVM features four 32-bit registers: **`REG1, REG2, REG3, REG4`**. Each of them is represented as a single byte with values `0x0`, `0x1`, `0x2`, `0x3`, respectively.
 
 ### Data types
 ToyVM has only one data type: 32-bit signed integers.
@@ -43,7 +43,7 @@ The first byte is always an opcode specifying the instruction. It is immediately
 
 ### Stack
 * **`0x50`**: **`PUSH REGi`** - pushes the contents of register **`REGi`** to the stack.
-* **`0x51`**: **`PUSH_ALL`** - push all four registers to the stack.
+* **`0x51`**: **`PUSH_ALL`** - pushes all four registers to the stack.
 * **`0x52`**: **`POP REGi`** - pops the stack into register **`REGi`**.
 * **`0x53`**: **`POP_ALL`** - pops all values of registers from the stack back to the registers.
 * **`0x54`**: **`LSP REGi`** - loads the value of the stack pointer to the register **`REGi`**.
