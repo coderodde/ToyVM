@@ -1,7 +1,7 @@
 # ToyVM
 A simple virtual machine written in C.
 
-## Instuction set specification 
+## Instruction set specification 
 Just like Intel-based computers, ToyVM is little-endian.
 
 ### Registers
