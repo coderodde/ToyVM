@@ -383,8 +383,10 @@ static bool EXECUTE_MOD(TOYVM* vm)
         return false;
     }
     
-    vm->cpu.registers[target_register_index] %=
-    vm->cpu.registers[source_register_index];
+    vm->cpu.registers[target_register_index] =
+        vm->cpu.registers[source_register_index] %
+        vm->cpu.registers[target_register_index];
+    
     /* Advance the program counter past this instruction. */
     vm->cpu.program_counter += GET_INSTRUCTION_LENGTH(MOD);
     return true;

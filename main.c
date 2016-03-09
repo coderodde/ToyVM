@@ -74,7 +74,7 @@ int main(int argc, const char * argv[]) {
     // CONST REG3 300
     vm.memory[78] = CONST;
     vm.memory[79] = REG3;
-    WRITE_WORD(&vm, 80, 300);
+    WRITE_WORD(&vm, 80, 340);
     
     // PUHS REG3
     vm.memory[84] = PUSH;
@@ -82,7 +82,7 @@ int main(int argc, const char * argv[]) {
     
     // INT 2
     vm.memory[86] = INT;
-    vm.memory[87] = 2;
+    vm.memory[87] = INTERRUPT_PRINT_STRING;
     
     // JMP 193
     vm.memory[88] = JMP;
@@ -117,10 +117,10 @@ int main(int argc, const char * argv[]) {
     vm.memory[116] = JA;
     WRITE_WORD(&vm, 117, 136);
     
-    // CONST REG3 300
+    // CONST REG3 320
     vm.memory[121] = CONST;
     vm.memory[122] = REG3;
-    WRITE_WORD(&vm, 123, 300);
+    WRITE_WORD(&vm, 123, 320);
     
     // PUHS REG3
     vm.memory[127] = PUSH;
@@ -163,7 +163,7 @@ int main(int argc, const char * argv[]) {
     vm.memory[159] = JA;
     WRITE_WORD(&vm, 160, 179);
     
-    // CONST REG3 300
+    // CONST REG3 340
     vm.memory[164] = CONST;
     vm.memory[165] = REG3;
     WRITE_WORD(&vm, 166, 300);
@@ -206,9 +206,9 @@ int main(int argc, const char * argv[]) {
     vm.memory[193] = RET;
     vm.memory[200] = HALT;
     
-    memcpy(&vm.memory[300], "FizzBuzz\n", strlen("FizzBuzz\n"));
-    memcpy(&vm.memory[320], "Fizz\n", strlen("Fizz\n"));
-    memcpy(&vm.memory[340], "Buzz\n", strlen("Buzz\n"));
+    memcpy(&vm.memory[300], "Fizz\n", strlen("Fizz\n"));
+    memcpy(&vm.memory[320], "Buzz\n", strlen("Buzz\n"));
+    memcpy(&vm.memory[340], "FizzBuzz\n", strlen("FizzBuzz\n"));
     memcpy(&vm.memory[350], "\n", strlen("\n"));
     
     RUN_VM(&vm);
