@@ -21,7 +21,7 @@ The first byte is always an opcode specifying the instruction. It is immediately
 * **`0x05`**: **`MOD REGi REGj`** - divides **`REGi`** by **`REGj`** and stores the remainder in **`REGj`**.
 
 ### Conditionals
-* **`0x10`**: **`CMP REGi REGj`** - compare the value in **`REGi`** to **`REGj`**.
+* **`0x10`**: **`CMP REGi REGj`** - compares the value in **`REGi`** to the value in **`REGj`**.
 * **`0x11`**: **`JA ADDRESS`** - jumps to address **`ADDRESS`** only if the **`vm.cpu.status`** has flag **`COMPARISON_ABOVE`** on.
 * **`0x12`**: **`JE ADDRESS`** - jumps to address **`ADDRESS`** only if the **`vm.cpu.status`** has flag **`COMPARISON_EQUAL`** on.
 * **`0x13`**: **`JB ADDRESS`** - jumps to address **`ADDRESS`** only if the **`vm.cpu.status`** has flag **`COMPARISON_BELOW`** on.
@@ -33,7 +33,7 @@ The first byte is always an opcode specifying the instruction. It is immediately
 
 ### Memory and data
 * **`0x30`**: **`LOAD REGi ADDRESS`** - stores the value at address **`ADDRESS`** to the register **`REGi`**.
-* **`0x31`**: **`STORE REGi ADDRESS`** - stores the value in **`REGi`** in the memory at address **`ADDRESS`**.
+* **`0x31`**: **`STORE REGi ADDRESS`** - stores the value in **`REGi`** to the memory at address **`ADDRESS`**.
 * **`0x32`**: **`CONST REGi DATA`** - stores the value **`DATA`** in the register **`REGi`**.
 
 ### Auxiliary
