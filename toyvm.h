@@ -62,7 +62,7 @@ typedef struct VM_CPU {
     int32_t stack_pointer;
     
     struct {
-        uint8_t HALT_BAD_INSTRUCTION   : 1;
+        uint8_t BAD_INSTRUCTION        : 1;
         uint8_t STACK_UNDERFLOW        : 1;
         uint8_t STACK_OVERFLOW         : 1;
         uint8_t INVALID_REGISTER_INDEX : 1;
@@ -89,5 +89,12 @@ void WriteWord(TOYVM* vm, int32_t address, int32_t value);
 void PrintStatus(TOYVM* vm);
 
 void RunVM(TOYVM* vm);
+
+struct INSTRUCTION {
+    uint8_t     opcode;
+    const char* name;
+    size_t      length;
+    bool      (*execute)(TOYVM* vm);
+};
 
 #endif /* TOYVM_H */

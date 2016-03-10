@@ -1,4 +1,5 @@
 #include "toyvm.h"
+#include <stdio.h>
 
 size_t GetInstructionLength(uint8_t opcode)
 {
@@ -86,6 +87,17 @@ void InitializeVM(TOYVM* vm, int32_t memory_size, int32_t stack_limit)
     vm->stack_limit         = stack_limit;
     vm->cpu.program_counter = 0;
     vm->cpu.stack_pointer   = (int32_t) memory_size;
+    
+    vm->cpu.status.BAD_ACCESS       = 0;
+    vm->cpu.status.COMPARISON_ABOVE = 0;
+    vm->cpu.status.COMPARISON_EQUAL = 0;
+    vm->cpu.status.COMPARISON_BELOW = 0;
+    
+    vm->cpu.status.BAD_INSTRUCTION        = 0;
+    vm->cpu.status.INVALID_REGISTER_INDEX = 0;
+    vm->cpu.status.STACK_OVERFLOW         = 0;
+    vm->cpu.status.STACK_UNDERFLOW        = 0;
+    
     memset(vm->cpu.registers, 0, sizeof(int32_t) * N_REGISTERS);
 }
 
@@ -177,7 +189,7 @@ static bool ExecuteAdd(TOYVM* vm)
     if (!InstructionFitsInMemory(vm, ADD))
     {
         vm->cpu.status.BAD_ACCESS = 1;
-        return false;
+        return true;
     }
     
     source_register_index = ReadByte(vm, GetProgramCounter(vm) + 1);
@@ -187,7 +199,7 @@ static bool ExecuteAdd(TOYVM* vm)
         !IsValidRegisterIndex(target_register_index))
     {
         vm->cpu.status.INVALID_REGISTER_INDEX = 1;
-        return false;
+        return true;
     }
     
     vm->cpu.registers[target_register_index]
@@ -195,7 +207,7 @@ static bool ExecuteAdd(TOYVM* vm)
     
     /* Advance the program counter past this instruction. */
     vm->cpu.program_counter += GetInstructionLength(ADD);
-    return true;
+    return false;
 }
 
 static bool ExecuteNeg(TOYVM* vm)
@@ -203,7 +215,7 @@ static bool ExecuteNeg(TOYVM* vm)
     if (!InstructionFitsInMemory(vm, NEG))
     {
         vm->cpu.status.BAD_ACCESS = 1;
-        return false;
+        return true;
     }
     
     uint8_t register_index = ReadByte(vm, GetProgramCounter(vm) + 1);
@@ -211,12 +223,12 @@ static bool ExecuteNeg(TOYVM* vm)
     if (!IsValidRegisterIndex(register_index))
     {
         vm->cpu.status.INVALID_REGISTER_INDEX = 1;
-        return false;
+        return true;
     }
     
     vm->cpu.registers[register_index] = -vm->cpu.registers[register_index];
     vm->cpu.program_counter += GetInstructionLength(NEG);
-    return true;
+    return false;
 }
 
 static bool ExecuteMul(TOYVM* vm)
@@ -227,7 +239,7 @@ static bool ExecuteMul(TOYVM* vm)
     if (!InstructionFitsInMemory(vm, MUL))
     {
         vm->cpu.status.BAD_ACCESS = 1;
-        return false;
+        return true;
     }
     
     source_register_index = ReadByte(vm, GetProgramCounter(vm) + 1);
@@ -237,14 +249,14 @@ static bool ExecuteMul(TOYVM* vm)
         !IsValidRegisterIndex(target_register_index))
     {
         vm->cpu.status.INVALID_REGISTER_INDEX = 1;
-        return false;
+        return true;
     }
     
     vm->cpu.registers[target_register_index] *=
     vm->cpu.registers[source_register_index];
     /* Advance the program counter past this instruction. */
     vm->cpu.program_counter += GetInstructionLength(MUL);
-    return true;
+    return false;
 }
 
 static bool ExecuteDiv(TOYVM* vm)
@@ -255,7 +267,7 @@ static bool ExecuteDiv(TOYVM* vm)
     if (!InstructionFitsInMemory(vm, DIV))
     {
         vm->cpu.status.BAD_ACCESS = 1;
-        return false;
+        return true;
     }
     
     source_register_index = ReadByte(vm, GetProgramCounter(vm) + 1);
@@ -265,14 +277,14 @@ static bool ExecuteDiv(TOYVM* vm)
         !IsValidRegisterIndex(target_register_index))
     {
         vm->cpu.status.INVALID_REGISTER_INDEX = 1;
-        return false;
+        return true;
     }
     
     vm->cpu.registers[target_register_index] /=
     vm->cpu.registers[source_register_index];
     /* Advance the program counter past this instruction. */
     vm->cpu.program_counter += GetInstructionLength(DIV);
-    return true;
+    return false;
 }
 
 static bool ExecuteMod(TOYVM* vm)
@@ -283,7 +295,7 @@ static bool ExecuteMod(TOYVM* vm)
     if (!InstructionFitsInMemory(vm, MOD))
     {
         vm->cpu.status.BAD_ACCESS = 1;
-        return false;
+        return true;
     }
     
     source_register_index = ReadByte(vm, GetProgramCounter(vm) + 1);
@@ -293,7 +305,7 @@ static bool ExecuteMod(TOYVM* vm)
         !IsValidRegisterIndex(target_register_index))
     {
         vm->cpu.status.INVALID_REGISTER_INDEX = 1;
-        return false;
+        return true;
     }
     
     vm->cpu.registers[target_register_index] =
@@ -302,7 +314,7 @@ static bool ExecuteMod(TOYVM* vm)
     
     /* Advance the program counter past this instruction. */
     vm->cpu.program_counter += GetInstructionLength(MOD);
-    return true;
+    return false;
 }
 
 static bool ExecuteCmp(TOYVM* vm)
@@ -310,7 +322,7 @@ static bool ExecuteCmp(TOYVM* vm)
     if (!InstructionFitsInMemory(vm, CMP))
     {
         vm->cpu.status.BAD_ACCESS = 1;
-        return false;
+        return true;
     }
     
     uint8_t register_index_1 = ReadByte(vm, GetProgramCounter(vm) + 1);
@@ -320,7 +332,7 @@ static bool ExecuteCmp(TOYVM* vm)
         !IsValidRegisterIndex(register_index_2))
     {
         vm->cpu.status.INVALID_REGISTER_INDEX = 1;
-        return false;
+        return true;
     }
     
     int32_t register_1 = vm->cpu.registers[register_index_1];
@@ -346,7 +358,7 @@ static bool ExecuteCmp(TOYVM* vm)
     }
     
     vm->cpu.program_counter += GetInstructionLength(CMP);
-    return true;
+    return false;
 }
 
 static bool ExecuteJumpIfAbove(TOYVM* vm)
@@ -354,7 +366,7 @@ static bool ExecuteJumpIfAbove(TOYVM* vm)
     if (!InstructionFitsInMemory(vm, JA))
     {
         vm->cpu.status.BAD_ACCESS = 1;
-        return false;
+        return true;
     }
     
     if (vm->cpu.status.COMPARISON_ABOVE)
@@ -366,7 +378,7 @@ static bool ExecuteJumpIfAbove(TOYVM* vm)
         vm->cpu.program_counter += GetInstructionLength(JA);
     }
     
-    return true;
+    return false;
 }
 
 static bool ExecuteJumpIfEqual(TOYVM* vm)
@@ -374,7 +386,7 @@ static bool ExecuteJumpIfEqual(TOYVM* vm)
     if (!InstructionFitsInMemory(vm, JE))
     {
         vm->cpu.status.BAD_ACCESS = 1;
-        return false;
+        return true;
     }
     
     if (vm->cpu.status.COMPARISON_EQUAL)
@@ -386,7 +398,7 @@ static bool ExecuteJumpIfEqual(TOYVM* vm)
         vm->cpu.program_counter += GetInstructionLength(JE);
     }
     
-    return true;
+    return false;
 }
 
 static bool ExecuteJumpIfBelow(TOYVM* vm)
@@ -394,7 +406,7 @@ static bool ExecuteJumpIfBelow(TOYVM* vm)
     if (!InstructionFitsInMemory(vm, JB))
     {
         vm->cpu.status.BAD_ACCESS = 1;
-        return false;
+        return true;
     }
     
     if (vm->cpu.status.COMPARISON_BELOW)
@@ -406,7 +418,7 @@ static bool ExecuteJumpIfBelow(TOYVM* vm)
         vm->cpu.program_counter += GetInstructionLength(JB);
     }
     
-    return true;
+    return false;
 }
 
 static bool ExecuteJump(TOYVM* vm)
@@ -414,25 +426,25 @@ static bool ExecuteJump(TOYVM* vm)
     if (!InstructionFitsInMemory(vm, JMP))
     {
         vm->cpu.status.BAD_ACCESS = 1;
-        return false;
+        return true;
     }
     
     vm->cpu.program_counter = ReadWord(vm, GetProgramCounter(vm) + 1);
-    return true;
+    return false;
 }
 
-static bool ExecuteCallL(TOYVM* vm)
+static bool ExecuteCall(TOYVM* vm)
 {
     if (!InstructionFitsInMemory(vm, CALL))
     {
         vm->cpu.status.BAD_ACCESS = 1;
-        return false;
+        return true;
     }
     
     if (GetAvailableStackSize(vm) < 4)
     {
         vm->cpu.status.STACK_OVERFLOW = 1;
-        return false;
+        return true;
     }
     
     /* Save the return address on the stack. */
@@ -440,7 +452,7 @@ static bool ExecuteCallL(TOYVM* vm)
     PushVM(vm, (uint32_t)(GetProgramCounter(vm) + GetInstructionLength(CALL)));
     /* Actual jump to the subroutine. */
     vm->cpu.program_counter = address;
-    return true;
+    return false;
 }
 
 static bool ExecuteRet(TOYVM* vm)
@@ -448,17 +460,17 @@ static bool ExecuteRet(TOYVM* vm)
     if (!InstructionFitsInMemory(vm, RET))
     {
         vm->cpu.status.BAD_ACCESS = 1;
-        return false;
+        return true;
     }
     
     if (StackIsEmpty(vm))
     {
         vm->cpu.status.STACK_UNDERFLOW = 1;
-        return false;
+        return true;
     }
     
     vm->cpu.program_counter = PopVM(vm);
-    return true;
+    return false;
 }
 
 static bool ExecuteLoad(TOYVM* vm)
@@ -466,7 +478,7 @@ static bool ExecuteLoad(TOYVM* vm)
     if (!InstructionFitsInMemory(vm, LOAD))
     {
         vm->cpu.status.BAD_ACCESS = 1;
-        return false;
+        return true;
     }
     
     uint8_t register_index = ReadByte(vm, GetProgramCounter(vm) + 1);
@@ -474,13 +486,13 @@ static bool ExecuteLoad(TOYVM* vm)
     if (!IsValidRegisterIndex(register_index))
     {
         vm->cpu.status.INVALID_REGISTER_INDEX = 1;
-        return false;
+        return true;
     }
     
     uint32_t address = ReadWord(vm, GetProgramCounter(vm) + 2);
     vm->cpu.registers[register_index] = ReadWord(vm, address);
     vm->cpu.program_counter += GetInstructionLength(LOAD);
-    return true;
+    return false;
 }
 
 static bool ExecuteStore(TOYVM* vm)
@@ -488,7 +500,7 @@ static bool ExecuteStore(TOYVM* vm)
     if (!InstructionFitsInMemory(vm, STORE))
     {
         vm->cpu.status.BAD_ACCESS = 1;
-        return false;
+        return true;
     }
     
     uint8_t register_index = ReadByte(vm, GetProgramCounter(vm) + 1);
@@ -496,13 +508,13 @@ static bool ExecuteStore(TOYVM* vm)
     if (!IsValidRegisterIndex(register_index))
     {
         vm->cpu.status.INVALID_REGISTER_INDEX = 1;
-        return false;
+        return true;
     }
     
     uint32_t address = ReadWord(vm, GetProgramCounter(vm) + 2);
     WriteWord(vm, address, vm->cpu.registers[register_index]);
     vm->cpu.program_counter += GetInstructionLength(STORE);
-    return true;
+    return false;
 }
 
 static bool ExecuteConst(TOYVM* vm)
@@ -510,7 +522,7 @@ static bool ExecuteConst(TOYVM* vm)
     if (!InstructionFitsInMemory(vm, CONST))
     {
         vm->cpu.status.BAD_ACCESS = 1;
-        return false;
+        return true;
     }
     
     uint8_t register_index = ReadByte(vm, GetProgramCounter(vm) + 1);
@@ -519,12 +531,12 @@ static bool ExecuteConst(TOYVM* vm)
     if (!IsValidRegisterIndex(register_index))
     {
         vm->cpu.status.INVALID_REGISTER_INDEX = 1;
-        return false;
+        return true;
     }
     
     vm->cpu.registers[register_index] = datum;
     vm->cpu.program_counter += GetInstructionLength(CONST);
-    return true;
+    return false;
 }
 
 static void PrintString(TOYVM* vm, uint32_t address)
@@ -537,7 +549,7 @@ static bool ExecuteInterrupt(TOYVM* vm)
     if (!InstructionFitsInMemory(vm, INT))
     {
         vm->cpu.status.BAD_ACCESS = 1;
-        return false;
+        return true;
     }
     
     uint8_t interrupt_number = ReadByte(vm, GetProgramCounter(vm) + 1);
@@ -545,7 +557,7 @@ static bool ExecuteInterrupt(TOYVM* vm)
     if (StackIsEmpty(vm))
     {
         vm->cpu.status.STACK_UNDERFLOW = 1;
-        return false;
+        return true;
     }
     
     switch (interrupt_number)
@@ -559,11 +571,11 @@ static bool ExecuteInterrupt(TOYVM* vm)
             break;
             
         default:
-            return false;
+            return true;
     }
     
     vm->cpu.program_counter += GetInstructionLength(INT);
-    return true;
+    return false;
 }
 
 static bool ExecutePush(TOYVM* vm)
@@ -571,12 +583,12 @@ static bool ExecutePush(TOYVM* vm)
     if (!InstructionFitsInMemory(vm, PUSH))
     {
         vm->cpu.status.BAD_ACCESS = 1;
-        return false;
+        return true;
     }
     
     if (StackIsFull(vm))
     {
-        return false;
+        return true;
     }
     
     uint8_t register_index = ReadByte(vm, GetProgramCounter(vm) + 1);
@@ -584,7 +596,7 @@ static bool ExecutePush(TOYVM* vm)
     if (!IsValidRegisterIndex(register_index))
     {
         vm->cpu.status.INVALID_REGISTER_INDEX = 1;
-        return false;
+        return true;
     }
     
     WriteWord(vm,
@@ -593,7 +605,7 @@ static bool ExecutePush(TOYVM* vm)
     
     vm->cpu.stack_pointer -= 4;
     vm->cpu.program_counter += GetInstructionLength(PUSH);
-    return true;
+    return false;
 }
 
 static bool ExecutePushAll(TOYVM* vm)
@@ -601,13 +613,13 @@ static bool ExecutePushAll(TOYVM* vm)
     if (!InstructionFitsInMemory(vm, PUSH_ALL))
     {
         vm->cpu.status.BAD_ACCESS = 1;
-        return false;
+        return true;
     }
     
     if (!CanPerformMultipush(vm))
     {
         vm->cpu.status.STACK_OVERFLOW = 1;
-        return false;
+        return true;
     }
     
     WriteWord(vm, vm->cpu.stack_pointer -= 4, vm->cpu.registers[REG1]);
@@ -615,7 +627,7 @@ static bool ExecutePushAll(TOYVM* vm)
     WriteWord(vm, vm->cpu.stack_pointer -= 4, vm->cpu.registers[REG3]);
     WriteWord(vm, vm->cpu.stack_pointer -= 4, vm->cpu.registers[REG4]);
     vm->cpu.program_counter += GetInstructionLength(PUSH_ALL);
-    return true;
+    return false;
 }
 
 static bool ExecutePop(TOYVM* vm)
@@ -623,12 +635,12 @@ static bool ExecutePop(TOYVM* vm)
     if (!InstructionFitsInMemory(vm, POP))
     {
         vm->cpu.status.BAD_ACCESS = 1;
-        return false;
+        return true;
     }
     
     if (StackIsEmpty(vm))
     {
-        return false;
+        return true;
     }
     
     uint8_t register_index = ReadByte(vm, GetProgramCounter(vm) + 1);
@@ -636,14 +648,14 @@ static bool ExecutePop(TOYVM* vm)
     if (!IsValidRegisterIndex(register_index))
     {
         vm->cpu.status.INVALID_REGISTER_INDEX = 1;
-        return false;
+        return true;
     }
     
     int32_t datum = ReadWord(vm, GetProgramCounter(vm) + 2);
     vm->cpu.registers[register_index] = datum;
     vm->cpu.stack_pointer += 4;
     vm->cpu.program_counter += GetInstructionLength(POP);
-    return true;
+    return false;
 }
 
 static bool ExecutePopAll(TOYVM* vm)
@@ -651,13 +663,13 @@ static bool ExecutePopAll(TOYVM* vm)
     if (!InstructionFitsInMemory(vm, POP_ALL))
     {
         vm->cpu.status.BAD_ACCESS = 1;
-        return false;
+        return true;
     }
     
     if (!CanPerformMultipop(vm))
     {
         vm->cpu.status.STACK_UNDERFLOW = 1;
-        return false;
+        return true;
     }
     
     vm->cpu.registers[REG4] = ReadWord(vm, vm->cpu.stack_pointer);
@@ -666,7 +678,7 @@ static bool ExecutePopAll(TOYVM* vm)
     vm->cpu.registers[REG1] = ReadWord(vm, vm->cpu.stack_pointer + 12);
     vm->cpu.stack_pointer += 16;
     vm->cpu.program_counter += GetInstructionLength(POP_ALL);
-    return true;
+    return false;
 }
 
 static bool ExecuteLSP(TOYVM* vm)
@@ -674,7 +686,7 @@ static bool ExecuteLSP(TOYVM* vm)
     if (!InstructionFitsInMemory(vm, LSP))
     {
         vm->cpu.status.BAD_ACCESS = 1;
-        return false;
+        return true;
     }
     
     uint8_t register_index = ReadByte(vm, GetProgramCounter(vm) + 1);
@@ -682,17 +694,17 @@ static bool ExecuteLSP(TOYVM* vm)
     if (!IsValidRegisterIndex(register_index))
     {
         vm->cpu.status.INVALID_REGISTER_INDEX = 1;
-        return false;
+        return true;
     }
     
     vm->cpu.registers[register_index] = vm->cpu.stack_pointer;
     vm->cpu.program_counter += GetInstructionLength(LSP);
-    return true;
+    return false;
 }
 
 void PrintStatus(TOYVM* vm)
 {
-    printf("HALT_BAD_INSTRUCTION  : %d\n", vm->cpu.status.HALT_BAD_INSTRUCTION);
+    printf("BAD_INSTRUCTION       : %d\n", vm->cpu.status.BAD_INSTRUCTION);
     printf("STACK_UNDERFLOW       : %d\n", vm->cpu.status.STACK_UNDERFLOW);
     printf("STACK_OVERFLOW        : %d\n", vm->cpu.status.STACK_OVERFLOW);
     printf("INVALID_REGISTER_INDEX: %d\n",
@@ -715,102 +727,102 @@ void RunVM(TOYVM* vm)
         switch (opcode)
         {
             case ADD:
-                if (!ExecuteAdd(vm)) return;
+                if (ExecuteAdd(vm)) return;
                 
                 break;
                 
             case NEG:
-                if (!ExecuteNeg(vm)) return;
+                if (ExecuteNeg(vm)) return;
                 
                 break;
                 
             case MUL:
-                if (!ExecuteMul(vm)) return;
+                if (ExecuteMul(vm)) return;
                 
                 break;
                 
             case DIV:
-                if (!ExecuteDiv(vm)) return;
+                if (ExecuteDiv(vm)) return;
                 
                 break;
                 
             case MOD:
-                if (!ExecuteMod(vm)) return;
+                if (ExecuteMod(vm)) return;
                 
                 break;
                 
             case CMP:
-                if (!ExecuteCmp(vm)) return;
+                if (ExecuteCmp(vm)) return;
                 
                 break;
                 
             case JA:
-                if (!ExecuteJumpIfAbove(vm)) return;
+                if (ExecuteJumpIfAbove(vm)) return;
                 
                 break;
                 
             case JE:
-                if (!ExecuteJumpIfEqual(vm)) return;
+                if (ExecuteJumpIfEqual(vm)) return;
                 
                 break;
                 
             case JB:
-                if (!ExecuteJumpIfBelow(vm)) return;
+                if (ExecuteJumpIfBelow(vm)) return;
                 
                 break;
                 
             case JMP:
-                if (!ExecuteJump(vm)) return;
+                if (ExecuteJump(vm)) return;
                 
                 break;
                 
             case CALL:
-                if (!ExecuteCallL(vm)) return;
+                if (ExecuteCall(vm)) return;
                 
                 break;
                 
             case RET:
-                if (!ExecuteRet(vm)) return;
+                if (ExecuteRet(vm)) return;
                 
                 break;
                 
             case LOAD:
-                if (!ExecuteLoad(vm)) return;
+                if (ExecuteLoad(vm)) return;
                 
                 break;
                 
             case STORE:
-                if (!ExecuteStore(vm)) return;
+                if (ExecuteStore(vm)) return;
                 
                 break;
                 
             case CONST:
-                if (!ExecuteConst(vm)) return;
+                if (ExecuteConst(vm)) return;
                 
                 break;
                 
             case PUSH:
-                if (!ExecutePush(vm)) return;
+                if (ExecutePush(vm)) return;
                 
                 break;
                 
             case PUSH_ALL:
-                if (!ExecutePushAll(vm)) return;
+                if (ExecutePushAll(vm)) return;
                 
                 break;
                 
             case POP:
-                if (!ExecutePop(vm)) return;
+                if (ExecutePop(vm)) return;
                 
                 break;
                 
             case POP_ALL:
-                if (!ExecutePopAll(vm)) return;
+                if (ExecutePopAll(vm)) return;
                 
                 break;
                 
             case LSP:
-                if (!ExecuteLSP(vm)) return;
+                if (ExecuteLSP(vm)) return;
                 
                 break;
                 
@@ -818,7 +830,7 @@ void RunVM(TOYVM* vm)
                 return;
                 
             case INT:
-                if (!ExecuteInterrupt(vm)) return;
+                if (ExecuteInterrupt(vm)) return;
                 
                 break;
                 
@@ -827,7 +839,7 @@ void RunVM(TOYVM* vm)
                 break;
                 
             default:
-                vm->cpu.status.HALT_BAD_INSTRUCTION = 1;
+                vm->cpu.status.BAD_INSTRUCTION = 1;
                 return;
         }
     }
