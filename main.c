@@ -3,17 +3,17 @@
 
 int main(int argc, const char * argv[]) {
     TOYVM vm;
-    INIT_VM(&vm, 1024, 512);
+    InitializeVM(&vm, 1024, 512);
     
     // CONST REG4 100
     vm.memory[0] = CONST;
     vm.memory[1] = REG4;
-    WRITE_WORD(&vm, 2, 100);
+    WriteWord(&vm, 2, 100);
     
     // CONST REG2 1
     vm.memory[6] = CONST;
     vm.memory[7] = REG2;
-    WRITE_WORD(&vm, 8, 1);
+    WriteWord(&vm, 8, 1);
     
     // [12] ADD REG2 REG1
     vm.memory[12] = ADD;
@@ -27,26 +27,26 @@ int main(int argc, const char * argv[]) {
     
     // JA 200
     vm.memory[18] = JA;
-    WRITE_WORD(&vm, 19, 200);
+    WriteWord(&vm, 19, 200);
     
     // PUSH_ALL
     vm.memory[23] = PUSH_ALL;
     
     // CALL 50
     vm.memory[24] = CALL;
-    WRITE_WORD(&vm, 25, 50);
+    WriteWord(&vm, 25, 50);
     
     // POP_ALL
     vm.memory[29] = POP_ALL;
     
     // JMP
     vm.memory[30] = JMP;
-    WRITE_WORD(&vm, 31, 12);
+    WriteWord(&vm, 31, 12);
     
 //[50] CONST REG2 15
     vm.memory[50] = CONST;
     vm.memory[51] = REG2;
-    WRITE_WORD(&vm, 52, 15);
+    WriteWord(&vm, 52, 15);
     
     // MOD REG1 REG2
     vm.memory[56] = MOD;
@@ -56,7 +56,7 @@ int main(int argc, const char * argv[]) {
     // CONST REG3 0
     vm.memory[59] = CONST;
     vm.memory[60] = REG3;
-    WRITE_WORD(&vm, 61, 0);
+    WriteWord(&vm, 61, 0);
     
     // CMP REG2 REG3
     vm.memory[65] = CMP;
@@ -65,16 +65,16 @@ int main(int argc, const char * argv[]) {
     
     // JB 93
     vm.memory[68] = JB;
-    WRITE_WORD(&vm, 69, 93);
+    WriteWord(&vm, 69, 93);
     
     // JA 93
     vm.memory[73] = JA;
-    WRITE_WORD(&vm, 74, 93);
+    WriteWord(&vm, 74, 93);
     
     // CONST REG3 300
     vm.memory[78] = CONST;
     vm.memory[79] = REG3;
-    WRITE_WORD(&vm, 80, 340);
+    WriteWord(&vm, 80, 340);
     
     // PUHS REG3
     vm.memory[84] = PUSH;
@@ -86,13 +86,13 @@ int main(int argc, const char * argv[]) {
     
     // JMP 193
     vm.memory[88] = JMP;
-    WRITE_WORD(&vm, 89, 193);
+    WriteWord(&vm, 89, 193);
     
 ////////////////////////////
 //[93] CONST REG2 5
     vm.memory[93] = CONST;
     vm.memory[94] = REG2;
-    WRITE_WORD(&vm, 95, 5);
+    WriteWord(&vm, 95, 5);
     
     // MOD REG1 REG2
     vm.memory[99] = MOD;
@@ -102,7 +102,7 @@ int main(int argc, const char * argv[]) {
     // CONST REG3 0
     vm.memory[102] = CONST;
     vm.memory[103] = REG3;
-    WRITE_WORD(&vm, 104, 0);
+    WriteWord(&vm, 104, 0);
     
     // CMP REG2 REG3
     vm.memory[108] = CMP;
@@ -111,16 +111,16 @@ int main(int argc, const char * argv[]) {
     
     // JB 136
     vm.memory[111] = JB;
-    WRITE_WORD(&vm, 112, 136);
+    WriteWord(&vm, 112, 136);
     
     // JA 136
     vm.memory[116] = JA;
-    WRITE_WORD(&vm, 117, 136);
+    WriteWord(&vm, 117, 136);
     
     // CONST REG3 320
     vm.memory[121] = CONST;
     vm.memory[122] = REG3;
-    WRITE_WORD(&vm, 123, 320);
+    WriteWord(&vm, 123, 320);
     
     // PUHS REG3
     vm.memory[127] = PUSH;
@@ -132,13 +132,13 @@ int main(int argc, const char * argv[]) {
     
     // JMP 193
     vm.memory[131] = JMP;
-    WRITE_WORD(&vm, 132, 193);
+    WriteWord(&vm, 132, 193);
     
 //////////////////////////
 //[136] CONST REG2 3
     vm.memory[136] = CONST;
     vm.memory[137] = REG2;
-    WRITE_WORD(&vm, 138, 3);
+    WriteWord(&vm, 138, 3);
     
     // MOD REG1 REG2
     vm.memory[142] = MOD;
@@ -148,7 +148,7 @@ int main(int argc, const char * argv[]) {
     // CONST REG3 0
     vm.memory[145] = CONST;
     vm.memory[146] = REG3;
-    WRITE_WORD(&vm, 147, 0);
+    WriteWord(&vm, 147, 0);
     
     // CMP REG2 REG3
     vm.memory[151] = CMP;
@@ -157,16 +157,16 @@ int main(int argc, const char * argv[]) {
     
     // JB 179
     vm.memory[154] = JB;
-    WRITE_WORD(&vm, 155, 179);
+    WriteWord(&vm, 155, 179);
     
     // JA 179
     vm.memory[159] = JA;
-    WRITE_WORD(&vm, 160, 179);
+    WriteWord(&vm, 160, 179);
     
     // CONST REG3 340
     vm.memory[164] = CONST;
     vm.memory[165] = REG3;
-    WRITE_WORD(&vm, 166, 300);
+    WriteWord(&vm, 166, 300);
     
     // PUHS REG3
     vm.memory[170] = PUSH;
@@ -178,7 +178,7 @@ int main(int argc, const char * argv[]) {
     
     // JMP 193
     vm.memory[174] = JMP;
-    WRITE_WORD(&vm, 175, 193);
+    WriteWord(&vm, 175, 193);
     ////
     
 //[179]: PUSH REG1
@@ -192,7 +192,7 @@ int main(int argc, const char * argv[]) {
     // CONST REG4 350
     vm.memory[183] = CONST;
     vm.memory[184] = REG4;
-    WRITE_WORD(&vm, 185, 350);
+    WriteWord(&vm, 185, 350);
     
     // PUSH REG4
     vm.memory[189] = PUSH;
@@ -211,7 +211,9 @@ int main(int argc, const char * argv[]) {
     memcpy(&vm.memory[340], "FizzBuzz\n", strlen("FizzBuzz\n"));
     memcpy(&vm.memory[350], "\n", strlen("\n"));
     
-    RUN_VM(&vm);
-    PRINT_STATUS(&vm);
+    RunVM(&vm);
+    
+    puts("\n--- MACHINE STATUS ---");
+    PrintStatus(&vm);
     return 0;
 }
