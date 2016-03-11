@@ -215,5 +215,11 @@ int main(int argc, const char * argv[]) {
     
     puts("\n--- MACHINE STATUS ---");
     PrintStatus(&vm);
+    
+    FILE* file = fopen("fizzbuzz.brick", "w+");
+    
+    fwrite(vm.memory, 1, 500, file);
+    fclose(file);
+    
     return 0;
 }
