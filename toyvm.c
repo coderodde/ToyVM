@@ -9,48 +9,6 @@ typedef struct instruction {
     bool    (*execute)(TOYVM*);
 } instruction;
 
-size_t GetInstructionLength(uint8_t opcode)
-{
-    switch (opcode)
-    {
-        case PUSH_ALL:
-        case POP_ALL:
-        case RET:
-        case HALT:
-        case NOP:
-            return 1;
-            
-        case LSP:
-        case PUSH:
-        case POP:
-        case NEG:
-        case INT:
-            return 2;
-            
-        case ADD:
-        case MUL:
-        case DIV:
-        case MOD:
-        case CMP:
-            return 3;
-            
-        case CALL:
-        case JA:
-        case JE:
-        case JB:
-        case JMP:
-            return 5;
-            
-        case LOAD:
-        case STORE:
-        case CONST:
-            return 6;
-            
-        default:
-            return 0;
-    }
-}
-
 static bool StackIsEmpty(TOYVM* vm)
 {
     return vm->cpu.stack_pointer >= vm->memory_size;
@@ -80,6 +38,10 @@ static bool CanPerformMultipop(TOYVM* vm)
 {
     return GetOccupiedStackSize(vm) >= sizeof(int32_t) * N_REGISTERS;
 }
+
+static bool InstructionFitsInMemory(TOYVM* vm, uint8_t opcode);
+
+static size_t GetInstructionLength(TOYVM* vm, uint8_t opcode);
 
 void InitializeVM(TOYVM* vm, int32_t memory_size, int32_t stack_limit)
 {
@@ -206,15 +168,6 @@ static bool IsValidRegisterIndex(uint8_t byte)
     return false;
 }
 
-/*******************************************************************************
- * Checks that an instruction fits entirely in the memory.                      *
- *******************************************************************************/
-static bool InstructionFitsInMemory(TOYVM* vm, uint8_t opcode)
-{
-    size_t instruction_length = GetInstructionLength(opcode);
-    return vm->cpu.program_counter + instruction_length <= vm->memory_size;
-}
-
 static int32_t GetProgramCounter(TOYVM* vm)
 {
     return vm->cpu.program_counter;
@@ -245,7 +198,7 @@ static bool ExecuteAdd(TOYVM* vm)
     += vm->cpu.registers[source_register_index];
     
     /* Advance the program counter past this instruction. */
-    vm->cpu.program_counter += GetInstructionLength(ADD);
+    vm->cpu.program_counter += GetInstructionLength(vm, ADD);
     return false;
 }
 
@@ -266,7 +219,7 @@ static bool ExecuteNeg(TOYVM* vm)
     }
     
     vm->cpu.registers[register_index] = -vm->cpu.registers[register_index];
-    vm->cpu.program_counter += GetInstructionLength(NEG);
+    vm->cpu.program_counter += GetInstructionLength(vm, NEG);
     return false;
 }
 
@@ -294,7 +247,7 @@ static bool ExecuteMul(TOYVM* vm)
     vm->cpu.registers[target_register_index] *=
     vm->cpu.registers[source_register_index];
     /* Advance the program counter past this instruction. */
-    vm->cpu.program_counter += GetInstructionLength(MUL);
+    vm->cpu.program_counter += GetInstructionLength(vm, MUL);
     return false;
 }
 
@@ -322,7 +275,7 @@ static bool ExecuteDiv(TOYVM* vm)
     vm->cpu.registers[target_register_index] /=
     vm->cpu.registers[source_register_index];
     /* Advance the program counter past this instruction. */
-    vm->cpu.program_counter += GetInstructionLength(DIV);
+    vm->cpu.program_counter += GetInstructionLength(vm, DIV);
     return false;
 }
 
@@ -352,7 +305,7 @@ static bool ExecuteMod(TOYVM* vm)
     vm->cpu.registers[target_register_index];
     
     /* Advance the program counter past this instruction. */
-    vm->cpu.program_counter += GetInstructionLength(MOD);
+    vm->cpu.program_counter += GetInstructionLength(vm, MOD);
     return false;
 }
 
@@ -396,7 +349,7 @@ static bool ExecuteCmp(TOYVM* vm)
         vm->cpu.status.COMPARISON_BELOW = 0;
     }
     
-    vm->cpu.program_counter += GetInstructionLength(CMP);
+    vm->cpu.program_counter += GetInstructionLength(vm, CMP);
     return false;
 }
 
@@ -414,7 +367,7 @@ static bool ExecuteJumpIfAbove(TOYVM* vm)
     }
     else
     {
-        vm->cpu.program_counter += GetInstructionLength(JA);
+        vm->cpu.program_counter += GetInstructionLength(vm, JA);
     }
     
     return false;
@@ -434,7 +387,7 @@ static bool ExecuteJumpIfEqual(TOYVM* vm)
     }
     else
     {
-        vm->cpu.program_counter += GetInstructionLength(JE);
+        vm->cpu.program_counter += GetInstructionLength(vm, JE);
     }
     
     return false;
@@ -454,7 +407,7 @@ static bool ExecuteJumpIfBelow(TOYVM* vm)
     }
     else
     {
-        vm->cpu.program_counter += GetInstructionLength(JB);
+        vm->cpu.program_counter += GetInstructionLength(vm, JB);
     }
     
     return false;
@@ -488,7 +441,8 @@ static bool ExecuteCall(TOYVM* vm)
     
     /* Save the return address on the stack. */
     uint32_t address = ReadWord(vm, GetProgramCounter(vm) + 1);
-    PushVM(vm, (uint32_t)(GetProgramCounter(vm) + GetInstructionLength(CALL)));
+    PushVM(vm, (uint32_t)(GetProgramCounter(vm) +
+                          GetInstructionLength(vm, CALL)));
     /* Actual jump to the subroutine. */
     vm->cpu.program_counter = address;
     return false;
@@ -530,7 +484,7 @@ static bool ExecuteLoad(TOYVM* vm)
     
     uint32_t address = ReadWord(vm, GetProgramCounter(vm) + 2);
     vm->cpu.registers[register_index] = ReadWord(vm, address);
-    vm->cpu.program_counter += GetInstructionLength(LOAD);
+    vm->cpu.program_counter += GetInstructionLength(vm, LOAD);
     return false;
 }
 
@@ -552,7 +506,7 @@ static bool ExecuteStore(TOYVM* vm)
     
     uint32_t address = ReadWord(vm, GetProgramCounter(vm) + 2);
     WriteWord(vm, address, vm->cpu.registers[register_index]);
-    vm->cpu.program_counter += GetInstructionLength(STORE);
+    vm->cpu.program_counter += GetInstructionLength(vm, STORE);
     return false;
 }
 
@@ -574,7 +528,7 @@ static bool ExecuteConst(TOYVM* vm)
     }
     
     vm->cpu.registers[register_index] = datum;
-    vm->cpu.program_counter += GetInstructionLength(CONST);
+    vm->cpu.program_counter += GetInstructionLength(vm, CONST);
     return false;
 }
 
@@ -613,7 +567,7 @@ static bool ExecuteInterrupt(TOYVM* vm)
             return true;
     }
     
-    vm->cpu.program_counter += GetInstructionLength(INT);
+    vm->cpu.program_counter += GetInstructionLength(vm, INT);
     return false;
 }
 
@@ -643,7 +597,7 @@ static bool ExecutePush(TOYVM* vm)
               vm->cpu.registers[register_index]);
     
     vm->cpu.stack_pointer -= 4;
-    vm->cpu.program_counter += GetInstructionLength(PUSH);
+    vm->cpu.program_counter += GetInstructionLength(vm, PUSH);
     return false;
 }
 
@@ -665,7 +619,7 @@ static bool ExecutePushAll(TOYVM* vm)
     WriteWord(vm, vm->cpu.stack_pointer -= 4, vm->cpu.registers[REG2]);
     WriteWord(vm, vm->cpu.stack_pointer -= 4, vm->cpu.registers[REG3]);
     WriteWord(vm, vm->cpu.stack_pointer -= 4, vm->cpu.registers[REG4]);
-    vm->cpu.program_counter += GetInstructionLength(PUSH_ALL);
+    vm->cpu.program_counter += GetInstructionLength(vm, PUSH_ALL);
     return false;
 }
 
@@ -693,7 +647,7 @@ static bool ExecutePop(TOYVM* vm)
     int32_t datum = ReadWord(vm, GetProgramCounter(vm) + 2);
     vm->cpu.registers[register_index] = datum;
     vm->cpu.stack_pointer += 4;
-    vm->cpu.program_counter += GetInstructionLength(POP);
+    vm->cpu.program_counter += GetInstructionLength(vm, POP);
     return false;
 }
 
@@ -716,7 +670,7 @@ static bool ExecutePopAll(TOYVM* vm)
     vm->cpu.registers[REG2] = ReadWord(vm, vm->cpu.stack_pointer + 8);
     vm->cpu.registers[REG1] = ReadWord(vm, vm->cpu.stack_pointer + 12);
     vm->cpu.stack_pointer += 16;
-    vm->cpu.program_counter += GetInstructionLength(POP_ALL);
+    vm->cpu.program_counter += GetInstructionLength(vm, POP_ALL);
     return false;
 }
 
@@ -737,7 +691,7 @@ static bool ExecuteLSP(TOYVM* vm)
     }
     
     vm->cpu.registers[register_index] = vm->cpu.stack_pointer;
-    vm->cpu.program_counter += GetInstructionLength(LSP);
+    vm->cpu.program_counter += GetInstructionLength(vm, LSP);
     return false;
 }
 
@@ -748,7 +702,7 @@ static bool ExecuteNop(TOYVM* vm) {
         return true;
     }
     
-    vm->cpu.program_counter += GetInstructionLength(NOP);
+    vm->cpu.program_counter += GetInstructionLength(vm, NOP);
     return false;
 }
 
@@ -802,6 +756,21 @@ const instruction instructions[] = {
     { LSP,      2, ExecuteLSP }
 };
 
+static size_t GetInstructionLength(TOYVM* vm, uint8_t opcode)
+{
+    size_t index = vm->opcode_map[opcode];
+    return instructions[index].size;
+}
+
+/*******************************************************************************
+ * Checks that an instruction fits entirely in the memory.                      *
+ *******************************************************************************/
+static bool InstructionFitsInMemory(TOYVM* vm, uint8_t opcode)
+{
+    size_t instruction_length = GetInstructionLength(vm, opcode);
+    return vm->cpu.program_counter + instruction_length <= vm->memory_size;
+}
+
 void RunVM(TOYVM* vm)
 {
     while (true)
@@ -809,8 +778,6 @@ void RunVM(TOYVM* vm)
         uint8_t opcode = vm->memory[vm->cpu.program_counter];
         size_t index = vm->opcode_map[opcode];
     
-        //printf("Index: %d\n", index);
-        
         if (index == 0)
         {
             vm->cpu.status.BAD_INSTRUCTION = 1;
