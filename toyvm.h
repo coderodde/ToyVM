@@ -54,6 +54,8 @@ enum {
     INTERRUPT_PRINT_STRING  = 0x02,
     
     N_REGISTERS = 4,
+    
+    OPCODE_MAP_SIZE = 256,
 };
 
 typedef struct VM_CPU {
@@ -78,6 +80,7 @@ typedef struct TOYVM {
     int32_t  memory_size;
     int32_t  stack_limit;
     VM_CPU   cpu;
+    size_t   opcode_map[OPCODE_MAP_SIZE];
 } TOYVM;
 
 void InitializeVM(TOYVM* vm, int32_t memory_size, int32_t stack_limit);

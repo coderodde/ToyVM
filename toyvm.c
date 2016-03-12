@@ -1,5 +1,13 @@
 #include "toyvm.h"
+#include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
+
+typedef struct instruction {
+    uint8_t   opcode;
+    size_t    size;
+    bool    (*execute)(TOYVM*);
+} instruction;
 
 size_t GetInstructionLength(uint8_t opcode)
 {
@@ -99,6 +107,37 @@ void InitializeVM(TOYVM* vm, int32_t memory_size, int32_t stack_limit)
     vm->cpu.status.STACK_UNDERFLOW        = 0;
     
     memset(vm->cpu.registers, 0, sizeof(int32_t) * N_REGISTERS);
+    memset(vm->opcode_map, 0, sizeof(vm->opcode_map));
+    
+    vm->opcode_map[ADD] = 1;
+    vm->opcode_map[NEG] = 2;
+    vm->opcode_map[MUL] = 3;
+    vm->opcode_map[DIV] = 4;
+    vm->opcode_map[MOD] = 5;
+    
+    vm->opcode_map[CMP] = 6;
+    vm->opcode_map[JA]  = 7;
+    vm->opcode_map[JE]  = 8;
+    vm->opcode_map[JB]  = 9;
+    vm->opcode_map[JMP] = 10;
+    
+    vm->opcode_map[CALL] = 11;
+    vm->opcode_map[RET]  = 12;
+    
+    vm->opcode_map[LOAD]  = 13;
+    vm->opcode_map[STORE] = 14;
+    vm->opcode_map[CONST] = 15;
+    
+    vm->opcode_map[HALT] = 16;
+    vm->opcode_map[INT]  = 17;
+    vm->opcode_map[NOP]  = 18;
+    
+    vm->opcode_map[PUSH]     = 19;
+    vm->opcode_map[PUSH_ALL] = 20;
+    vm->opcode_map[POP]      = 21;
+    vm->opcode_map[POP_ALL]  = 22;
+    vm->opcode_map[LSP]      = 23;
+    
 }
 
 void WriteVMMemory(TOYVM* vm, uint8_t* mem, size_t size)
@@ -702,6 +741,21 @@ static bool ExecuteLSP(TOYVM* vm)
     return false;
 }
 
+static bool ExecuteNop(TOYVM* vm) {
+    if (!InstructionFitsInMemory(vm, NOP))
+    {
+        vm->cpu.status.BAD_ACCESS = 1;
+        return true;
+    }
+    
+    vm->cpu.program_counter += GetInstructionLength(NOP);
+    return false;
+}
+
+static bool ExecuteHalt(TOYVM* vm) {
+    return true;
+}
+
 void PrintStatus(TOYVM* vm)
 {
     printf("BAD_INSTRUCTION       : %d\n", vm->cpu.status.BAD_INSTRUCTION);
@@ -716,131 +770,59 @@ void PrintStatus(TOYVM* vm)
     printf("COMPARISON_BELOW      : %d\n", vm->cpu.status.COMPARISON_BELOW);
 }
 
+const instruction instructions[] = {
+    { 0,        0, NULL       },
+    { ADD,      3, ExecuteAdd },
+    { NEG,      2, ExecuteNeg },
+    { MUL,      3, ExecuteMul },
+    { DIV,      3, ExecuteDiv },
+    { MOD,      3, ExecuteMod },
+    
+    { CMP,      3, ExecuteCmp },
+    { JA,       5, ExecuteJumpIfAbove },
+    { JE,       5, ExecuteJumpIfEqual },
+    { JB,       5, ExecuteJumpIfBelow },
+    { JMP,      5, ExecuteJump },
+    
+    { CALL,     5, ExecuteCall },
+    { RET,      1, ExecuteRet },
+    
+    { LOAD,     6, ExecuteLoad },
+    { STORE,    6, ExecuteStore },
+    { CONST,    6, ExecuteConst },
+    
+    { HALT,     1, ExecuteHalt },
+    { INT,      2, ExecuteInterrupt },
+    { NOP,      1, ExecuteNop },
+    
+    { PUSH,     2, ExecutePush },
+    { PUSH_ALL, 1, ExecutePushAll },
+    { POP,      2, ExecutePop },
+    { POP_ALL,  1, ExecutePopAll },
+    { LSP,      2, ExecuteLSP }
+};
+
 void RunVM(TOYVM* vm)
 {
-    uint8_t opcode = NOP;
-    
-    while (opcode != HALT)
+    while (true)
     {
-        opcode = vm->memory[vm->cpu.program_counter];
+        uint8_t opcode = vm->memory[vm->cpu.program_counter];
+        size_t index = vm->opcode_map[opcode];
+    
+        //printf("Index: %d\n", index);
         
-        switch (opcode)
+        if (index == 0)
         {
-            case ADD:
-                if (ExecuteAdd(vm)) return;
-                
-                break;
-                
-            case NEG:
-                if (ExecuteNeg(vm)) return;
-                
-                break;
-                
-            case MUL:
-                if (ExecuteMul(vm)) return;
-                
-                break;
-                
-            case DIV:
-                if (ExecuteDiv(vm)) return;
-                
-                break;
-                
-            case MOD:
-                if (ExecuteMod(vm)) return;
-                
-                break;
-                
-            case CMP:
-                if (ExecuteCmp(vm)) return;
-                
-                break;
-                
-            case JA:
-                if (ExecuteJumpIfAbove(vm)) return;
-                
-                break;
-                
-            case JE:
-                if (ExecuteJumpIfEqual(vm)) return;
-                
-                break;
-                
-            case JB:
-                if (ExecuteJumpIfBelow(vm)) return;
-                
-                break;
-                
-            case JMP:
-                if (ExecuteJump(vm)) return;
-                
-                break;
-                
-            case CALL:
-                if (ExecuteCall(vm)) return;
-                
-                break;
-                
-            case RET:
-                if (ExecuteRet(vm)) return;
-                
-                break;
-                
-            case LOAD:
-                if (ExecuteLoad(vm)) return;
-                
-                break;
-                
-            case STORE:
-                if (ExecuteStore(vm)) return;
-                
-                break;
-                
-            case CONST:
-                if (ExecuteConst(vm)) return;
-                
-                break;
-                
-            case PUSH:
-                if (ExecutePush(vm)) return;
-                
-                break;
-                
-            case PUSH_ALL:
-                if (ExecutePushAll(vm)) return;
-                
-                break;
-                
-            case POP:
-                if (ExecutePop(vm)) return;
-                
-                break;
-                
-            case POP_ALL:
-                if (ExecutePopAll(vm)) return;
-                
-                break;
-                
-            case LSP:
-                if (ExecuteLSP(vm)) return;
-                
-                break;
-                
-            case HALT:
-                return;
-                
-            case INT:
-                if (ExecuteInterrupt(vm)) return;
-                
-                break;
-                
-            case NOP:
-                /* Do nothing. */
-                break;
-                
-            default:
-                vm->cpu.status.BAD_INSTRUCTION = 1;
-                return;
+            vm->cpu.status.BAD_INSTRUCTION = 1;
+            return;
+        }
+    
+        bool (*opcode_exec)(TOYVM*) =
+        instructions[index].execute;
+    
+        if (opcode_exec(vm))
+        {
+            return;
         }
     }
 }
