@@ -9,38 +9,62 @@ typedef struct instruction {
     bool    (*execute)(TOYVM*);
 } instruction;
 
+/*******************************************************************************
+* Return 'true' if the stack is empty.                                         *
+*******************************************************************************/
 static bool StackIsEmpty(TOYVM* vm)
 {
     return vm->cpu.stack_pointer >= vm->memory_size;
 }
 
+/*******************************************************************************
+* Return 'true' if the stack is full.                                          *
+*******************************************************************************/
 static bool StackIsFull(TOYVM* vm)
 {
     return vm->cpu.stack_pointer <= vm->stack_limit;
 }
 
+/*******************************************************************************
+* Returns the amount of free space in the stack in bytes.                      *
+*******************************************************************************/
 static int32_t GetAvailableStackSize(TOYVM* vm)
 {
     return vm->cpu.stack_pointer - vm->stack_limit;
 }
 
+/*******************************************************************************
+* Returns the number of bytes occupied by the stack.                           *
+*******************************************************************************/
 static int32_t GetOccupiedStackSize(TOYVM* vm)
 {
     return vm->memory_size - vm->cpu.stack_pointer;
 }
 
+/*******************************************************************************
+* Returns 'true' if the stack has enough room for pushing all registers to it. *
+*******************************************************************************/
 static bool CanPerformMultipush(TOYVM* vm)
 {
     return GetAvailableStackSize(vm) >= sizeof(int32_t) * N_REGISTERS;
 }
 
+/*******************************************************************************
+* Returns 'true' if the stack can provide data for all registers.              *
+*******************************************************************************/
 static bool CanPerformMultipop(TOYVM* vm)
 {
     return GetOccupiedStackSize(vm) >= sizeof(int32_t) * N_REGISTERS;
 }
 
+/*******************************************************************************
+* Returns 'true' if the instructoin does not run over the memory.              *
+*******************************************************************************/
 static bool InstructionFitsInMemory(TOYVM* vm, uint8_t opcode);
 
+/*******************************************************************************
+* Returns the length of the instruction with opcode 'opcode'.                  *
+*******************************************************************************/
 static size_t GetInstructionLength(TOYVM* vm, uint8_t opcode);
 
 void InitializeVM(TOYVM* vm, int32_t memory_size, int32_t stack_limit)
@@ -58,6 +82,9 @@ void InitializeVM(TOYVM* vm, int32_t memory_size, int32_t stack_limit)
     vm->cpu.program_counter = 0;
     vm->cpu.stack_pointer   = (int32_t) memory_size;
     
+    /***************************************************************************
+    * Zero out all status flags.                                               *
+    ***************************************************************************/
     vm->cpu.status.BAD_ACCESS       = 0;
     vm->cpu.status.COMPARISON_ABOVE = 0;
     vm->cpu.status.COMPARISON_EQUAL = 0;
@@ -68,9 +95,16 @@ void InitializeVM(TOYVM* vm, int32_t memory_size, int32_t stack_limit)
     vm->cpu.status.STACK_OVERFLOW         = 0;
     vm->cpu.status.STACK_UNDERFLOW        = 0;
     
+    /***************************************************************************
+    * Zero out the registers and the map mapping opcodes to their respective   *
+    * instruction descriptors.                                                 *
+    ***************************************************************************/
     memset(vm->cpu.registers, 0, sizeof(int32_t) * N_REGISTERS);
     memset(vm->opcode_map, 0, sizeof(vm->opcode_map));
     
+    /***************************************************************************
+    * Build the opcode map.                                                    *
+    ***************************************************************************/
     vm->opcode_map[ADD] = 1;
     vm->opcode_map[NEG] = 2;
     vm->opcode_map[MUL] = 3;
@@ -136,6 +170,10 @@ static uint8_t ReadByte(TOYVM* vm, size_t address)
     return vm->memory[address];
 }
 
+/*******************************************************************************
+* Pops a single word from the stack. Used by some instructions that implicitly *
+* operate on stack.                                                            *
+*******************************************************************************/
 static int32_t PopVM(TOYVM* vm)
 {
     if (StackIsEmpty(vm))
@@ -149,6 +187,10 @@ static int32_t PopVM(TOYVM* vm)
     return word;
 }
 
+/*******************************************************************************
+* Pushes a single word to the stack. Used by some instructions. Used           *
+* implicitly by some instructions.                                             *
+*******************************************************************************/
 static void PushVM(TOYVM* vm, uint32_t value)
 {
     WriteWord(vm, vm->cpu.stack_pointer -= 4, value);
@@ -775,7 +817,15 @@ void RunVM(TOYVM* vm)
 {
     while (true)
     {
-        uint8_t opcode = vm->memory[vm->cpu.program_counter];
+        int32_t program_counter = GetProgramCounter(vm);
+        
+        if (program_counter < 0 || program_counter >= vm->memory_size)
+        {
+            vm->cpu.status.BAD_ACCESS = 1;
+            return;
+        }
+        
+        uint8_t opcode = vm->memory[program_counter];
         size_t index = vm->opcode_map[opcode];
     
         if (index == 0)

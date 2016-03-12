@@ -6,8 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* Arithmetics */
-
 enum {
     /* Arithmetics */
     ADD = 0x01,
@@ -50,9 +48,11 @@ enum {
     REG3 = 0x02,
     REG4 = 0x03,
     
+    /* Interupts */
     INTERRUPT_PRINT_INTEGER = 0x01,
     INTERRUPT_PRINT_STRING  = 0x02,
     
+    /* Miscellaneous */
     N_REGISTERS = 4,
     
     OPCODE_MAP_SIZE = 256,
@@ -83,21 +83,31 @@ typedef struct TOYVM {
     size_t   opcode_map[OPCODE_MAP_SIZE];
 } TOYVM;
 
+/*******************************************************************************
+* Initializes the virtual machine with RAM memory of length 'memory_size' and  *
+* the stack fence at 'stack_limit'.
+*******************************************************************************/
 void InitializeVM(TOYVM* vm, int32_t memory_size, int32_t stack_limit);
 
+/*******************************************************************************
+* Writes 'size' bytes to the memory of the machine. The write begins from the  *
+* beginning of the memory tape.                                                *
+*******************************************************************************/
 void WriteVMMemory(TOYVM* vm, uint8_t* mem, size_t size);
 
+/*******************************************************************************
+* Writes a single word 'value' (32-bit signed integer) at address 'address'.   *
+*******************************************************************************/
 void WriteWord(TOYVM* vm, int32_t address, int32_t value);
 
+/*******************************************************************************
+* Prints the status of the machine to stdout.                                  *
+*******************************************************************************/
 void PrintStatus(TOYVM* vm);
 
+/*******************************************************************************
+* Runs the virtual machine.                                                    *
+*******************************************************************************/
 void RunVM(TOYVM* vm);
-
-struct INSTRUCTION {
-    uint8_t     opcode;
-    const char* name;
-    size_t      length;
-    bool      (*execute)(TOYVM* vm);
-};
 
 #endif /* TOYVM_H */
