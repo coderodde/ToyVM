@@ -18,10 +18,17 @@ int main(int argc, const char * argv[]) {
     }
     
     FILE* file = fopen(argv[1], "r");
+    
+    if (!file)
+    {
+        printf("ERROR: cannot read file \"%s\".", argv[1]);
+        return (EXIT_FAILURE);
+    }
+    
     size_t file_size = getFileSize(file);
     
     TOYVM vm;
-    InitializeVM(&vm, 10000, 5000);
+    InitializeVM(&vm, 2 * file_size, file_size);
     
     fread(vm.memory, 1, file_size, file);
     fclose(file);
