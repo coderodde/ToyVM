@@ -121,19 +121,21 @@ void InitializeVM(TOYVM* vm, int32_t memory_size, int32_t stack_limit)
     vm->opcode_map[CALL] = 11;
     vm->opcode_map[RET]  = 12;
     
-    vm->opcode_map[LOAD]  = 13;
-    vm->opcode_map[STORE] = 14;
-    vm->opcode_map[CONST] = 15;
+    vm->opcode_map[LOAD]   = 13;
+    vm->opcode_map[STORE]  = 14;
+    vm->opcode_map[CONST]  = 15;
+    vm->opcode_map[RLOAD]  = 16;
+    vm->opcode_map[RSTORE] = 17;
     
-    vm->opcode_map[HALT] = 16;
-    vm->opcode_map[INT]  = 17;
-    vm->opcode_map[NOP]  = 18;
+    vm->opcode_map[HALT] = 18;
+    vm->opcode_map[INT]  = 19;
+    vm->opcode_map[NOP]  = 20;
     
-    vm->opcode_map[PUSH]     = 19;
-    vm->opcode_map[PUSH_ALL] = 20;
-    vm->opcode_map[POP]      = 21;
-    vm->opcode_map[POP_ALL]  = 22;
-    vm->opcode_map[LSP]      = 23;
+    vm->opcode_map[PUSH]     = 21;
+    vm->opcode_map[PUSH_ALL] = 22;
+    vm->opcode_map[POP]      = 23;
+    vm->opcode_map[POP_ALL]  = 24;
+    vm->opcode_map[LSP]      = 25;
     
 }
 
@@ -575,6 +577,56 @@ static bool ExecuteConst(TOYVM* vm)
     return false;
 }
 
+// RLOAD ADDRESS_REGISTER TARGET_REGISTER
+static bool ExecuteRload(TOYVM* vm)
+{
+    if (!InstructionFitsInMemory(vm, RLOAD))
+    {
+        vm->cpu.status.BAD_ACCESS = 1;
+        return true;
+    }
+    
+    uint8_t address_register_index = ReadByte(vm, GetProgramCounter(vm) + 1);
+    uint8_t data_register_index    = ReadByte(vm, GetProgramCounter(vm) + 2);
+    
+    if (!IsValidRegisterIndex(address_register_index)
+     || !IsValidRegisterIndex(data_register_index))
+    {
+        vm->cpu.status.INVALID_REGISTER_INDEX = 1;
+    }
+    
+    vm->cpu.registers[data_register_index] =
+        ReadWord(vm, vm->cpu.registers[address_register_index]);
+    vm->cpu.program_counter += GetInstructionLength(vm, RLOAD);
+    return false;
+}
+
+// RSTORE SOURCE_REGISTER ADDRESS_REGISTER
+static bool ExecuteRstore(TOYVM* vm)
+{
+    if (!InstructionFitsInMemory(vm, RSTORE))
+    {
+        vm->cpu.status.BAD_ACCESS = 1;
+        return true;
+    }
+    
+    uint8_t source_register_index  = ReadByte(vm, GetProgramCounter(vm) + 1);
+    uint8_t address_register_index = ReadByte(vm, GetProgramCounter(vm) + 2);
+    
+    if (!IsValidRegisterIndex(source_register_index)
+     || !IsValidRegisterIndex(address_register_index))
+    {
+        vm->cpu.status.BAD_ACCESS = 1;
+        return true;
+    }
+    
+    WriteWord(vm,
+              vm->cpu.registers[address_register_index],
+              vm->cpu.registers[source_register_index]);
+    
+    return false;
+}
+
 static void PrintString(TOYVM* vm, uint32_t address)
 {
     printf("%s", (const char*)(&vm->memory[address]));
@@ -787,6 +839,8 @@ const instruction instructions[] = {
     { LOAD,     6, ExecuteLoad },
     { STORE,    6, ExecuteStore },
     { CONST,    6, ExecuteConst },
+    { RLOAD,    3, ExecuteRload },
+    { RSTORE,   3, ExecuteRstore },
     
     { HALT,     1, ExecuteHalt },
     { INT,      2, ExecuteInterrupt },

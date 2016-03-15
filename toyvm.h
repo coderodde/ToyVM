@@ -26,9 +26,11 @@ enum {
     RET  = 0x21,
     
     /* Moving data */
-    LOAD  = 0x30,
-    STORE = 0x31,
-    CONST = 0x32,
+    LOAD   = 0x30,
+    STORE  = 0x31,
+    CONST  = 0x32,
+    RLOAD  = 0x33,
+    RSTORE = 0x34,
     
     /* Auxiliary */
     HALT = 0x40,
