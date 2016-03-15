@@ -37,7 +37,8 @@ The three comparison flags above are mutually exclusive: at most only one of the
 * **`0x30`**: **`LOAD REGi ADDRESS`** - stores the value at address **`ADDRESS`** to the register **`REGi`**.
 * **`0x31`**: **`STORE REGi ADDRESS`** - stores the value in **`REGi`** to the memory at address **`ADDRESS`**.
 * **`0x32`**: **`CONST REGi DATA`** - stores the value **`DATA`** in the register **`REGi`**.
-
+* **`0x33`**: **`RLOAD REGi REGj`** - loads the word at the address in the register **`REGi`** to the register **`REGj`**.
+* **`0x34`**: **`RSTORE REGi REGj`** - stores the contents of register **`REGi`** to the address at **`REGj`**.
 ### Auxiliary
 * **`0x40`**: **`HALT`** - halts the virtual machine. 
 * **`0x41`**: **`INT INTERRUPT_NUMBER`** - issues an interrupt with number **`INTERRUPT_NUMBER`**.
