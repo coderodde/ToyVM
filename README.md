@@ -1,5 +1,5 @@
 # ToyVM
-A simple virtual machine written in C.
+A simple virtual machine written in C. (Assembler available [here](https://github.com/coderodde/jToyAssembler).)
 
 ## Instruction set specification 
 Just like Intel-based computers, ToyVM is little-endian.
